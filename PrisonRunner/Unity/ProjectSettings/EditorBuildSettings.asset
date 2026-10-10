@@ -8,11 +8,5 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Game/Scenes/GameScene.unity
     guid: b94c0f96c9e51a6458799f2c2c407b81
-  - enabled: 0
-    path: Assets/Game/Scenes/RunnerMVP.unity
-    guid: 99c9720ab356a0642a771bea13969a05
-  - enabled: 0
-    path: Assets/Game/Scenes/CellBlockVerticalSlice.unity
-    guid: e109f8c67d3022145b02849565af6b1e
   m_configObjects: {}
   m_UseUCBPForAssetBundles: 0

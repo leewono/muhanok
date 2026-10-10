@@ -39,6 +39,6 @@
 
 ## Unity로 개발하려면
 
-소스를 내려받고 Unity Hub에서 `PrisonRunner/Unity`를 **6000.3.10f1**로 엽니다. 임포트·컴파일이 끝나면 상단 **Muhanok → Play GameScene**을 누릅니다. `RunnerMVP.unity`는 이전 시연 씬입니다.
+소스를 내려받고 Unity Hub에서 `PrisonRunner/Unity`를 **6000.3.10f1**로 엽니다. 임포트·컴파일이 끝나면 상단 **Muhanok → Play GameScene**을 누릅니다.
 
 공개 소스에는 Mixamo 원본 FBX가 포함되지 않습니다. 처음 열면 빠진 동작을 프로젝트의 자체 Blender 애니메이션으로 자동 연결합니다. 공개 실행용 게임에는 기존 Mixamo 동작이 들어 있으며, 소스 기본 애니메이션과 모양이 다를 수 있습니다. 원본을 직접 취득해 복원하는 방법은 [외부 리소스 안내](THIRD_PARTY_NOTICES.md)에 있습니다.
