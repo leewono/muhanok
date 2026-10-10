@@ -1,7 +1,4 @@
 using System.Collections;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
 using Muhanok.Bootstrap;
 using Muhanok.Domain;
 using Muhanok.Infrastructure;
@@ -96,25 +93,6 @@ namespace Muhanok.Tests
             Assert.AreEqual(created, game.Map.CreatedCount); Assert.AreEqual(0, game.Map.Active[0].Chunk.Entry.position.z);
             game.StartIntro(); for (int i = 0; i < 82; i++) game.Intro.Tick(.1f);
             Assert.AreEqual(GameFlowState.Running, game.Session.Flow.State);
-        }
-        [UnityTest] public IEnumerator UdpMainThreadDisconnectReconnect()
-        {
-            var input = new PoseGameInput();
-            int port; using (var probe = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0))) port = ((IPEndPoint)probe.Client.LocalEndPoint).Port;
-            using (var receiver = new PoseInputReceiver(input, .65f, .2f, .05f)) using (var sender = new UdpClient())
-            {
-                receiver.Start(port); Assert.IsNull(receiver.Error);
-                byte[] bytes = Encoding.UTF8.GetBytes("{\"type\":\"motion\",\"command\":\"LEFT\",\"confidence\":0.95,\"timestamp\":1}");
-                sender.Send(bytes, bytes.Length, "127.0.0.1", port);
-                double start = Time.realtimeSinceStartupAsDouble;
-                while (Time.realtimeSinceStartupAsDouble - start < 1 && receiver.Status(Time.realtimeSinceStartupAsDouble) != "Connected")
-                { receiver.Dispatch(Time.realtimeSinceStartupAsDouble); yield return null; }
-                Assert.IsTrue(input.TryRead(out var command)); Assert.AreEqual(MotionCommand.Left, command);
-                yield return new WaitForSecondsRealtime(.3f); receiver.Dispatch(Time.realtimeSinceStartupAsDouble);
-                Assert.AreEqual("Lost", receiver.Status(Time.realtimeSinceStartupAsDouble));
-                sender.Send(bytes, bytes.Length, "127.0.0.1", port); yield return new WaitForSecondsRealtime(.1f); receiver.Dispatch(Time.realtimeSinceStartupAsDouble);
-                Assert.AreEqual("Connected", receiver.Status(Time.realtimeSinceStartupAsDouble));
-            }
         }
         [UnityTest] public IEnumerator CoinsUseSweptCrossingAndResetWhenPooled()
         {

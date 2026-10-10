@@ -48,7 +48,6 @@ docs/document-qa/
 # Local distribution staging and backup files
 *.blend1
 *.blend2
-PoseServer/models/*.task
 
 # Mixamo raw files cannot be redistributed publicly
 References/MixamoDownloads/*.fbx

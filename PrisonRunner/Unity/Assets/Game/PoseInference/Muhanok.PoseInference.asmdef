@@ -1,0 +1,27 @@
+{
+    "name": "Muhanok.PoseInference",
+    "rootNamespace": "Muhanok.PoseInference",
+    "references": [
+        "Unity.InferenceEngine",
+        "Muhanok.Domain",
+        "Muhanok.Application",
+        "Muhanok.Infrastructure"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "MUHANOK_INFERENCE"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.ai.inference",
+            "expression": "2.2.0",
+            "define": "MUHANOK_INFERENCE"
+        }
+    ],
+    "noEngineReferences": false
+}

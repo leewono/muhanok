@@ -26,11 +26,12 @@ namespace Muhanok.Presentation
                 {
                     Consider(session, active.Chunk.Obstacles, ref nearest, ref cue);
                     Consider(session, active.Chunk.ExerciseObstacles, ref nearest, ref cue);
+                    Consider(session, active.Chunk.DynamicObstacles, ref nearest, ref cue);
                 }
             }
             return cue;
         }
-        private static void Consider(RunSession session, ObstacleController[] hazards, ref float nearest, ref string cue)
+        private static void Consider(RunSession session, System.Collections.Generic.IEnumerable<ObstacleController> hazards, ref float nearest, ref string cue)
         {
             if (hazards == null) return;
             float lookAhead = Mathf.Max(9f, session.TargetSpeed * 1.35f);

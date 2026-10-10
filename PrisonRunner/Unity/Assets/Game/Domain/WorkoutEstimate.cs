@@ -10,7 +10,8 @@ namespace Muhanok.Domain
         public const double AssumedMet=4;
         public double? WeightKg {get; private set;}
         public double ActiveSeconds {get; private set;}
-        public double EstimatedKcal=>WeightKg.HasValue?AssumedMet*3.5*WeightKg.Value/200*ActiveSeconds/60:0;
+        public double Met {get;set;}=AssumedMet;
+        public double EstimatedKcal=>WeightKg.HasValue?Met*3.5*WeightKg.Value/200*ActiveSeconds/60:0;
         public bool SetWeight(string value)
         {
             if(string.IsNullOrWhiteSpace(value)){WeightKg=null; Reset(); return true;}
@@ -22,6 +23,12 @@ namespace Muhanok.Domain
         {
             if(!WeightKg.HasValue||!playing||!poseConnected||recognizedMotion==MotionCommand.Center
                 ||double.IsNaN(seconds)||double.IsInfinity(seconds)||seconds<=0) return;
+            ActiveSeconds+=seconds;
+        }
+        // Camera styles count seconds in which the classifier saw real exercise (including running in place).
+        public void Tick(double seconds,bool playing,bool active)
+        {
+            if(!WeightKg.HasValue||!playing||!active||double.IsNaN(seconds)||double.IsInfinity(seconds)||seconds<=0) return;
             ActiveSeconds+=seconds;
         }
         public void Reset(){ActiveSeconds=0;}
