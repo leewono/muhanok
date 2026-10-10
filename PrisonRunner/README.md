@@ -9,10 +9,10 @@
 - [문서 목록과 이전 버전 구분](docs/README.md)
 - [최신 게임 아트 V10](docs/ART_V10.md), [실제 게임 캡처](docs/previews/ArtV10/index.html)
 - [맵 운동·가속 기능과 검증](docs/MAP_EXERCISES_SPEED.md)
-- [웹캠 입력 최초 설치](PoseServer/README.md)
+- [몸동작 인식·플레이 방식·전시 기능](docs/BODY_TRACKING.md)
 - [리소스 출처와 공개 소스 애니메이션](THIRD_PARTY_NOTICES.md)
 
-로컬에서는 `StartGame.cmd` 또는 `Builds/Windows/Muhanok.exe`를 실행합니다. 게임 빌드는 Git 소스 대신 GitHub Releases에서 배포합니다. 키보드 플레이에는 Unity나 Python이 필요 없습니다.
+로컬에서는 `StartGame.cmd` 또는 `Builds/Windows/Muhanok.exe`를 실행합니다. 게임 빌드는 Git 소스 대신 GitHub Releases에서 배포합니다. 실행에는 Unity나 Python이 필요 없습니다. 웹캠 인식은 게임 안에서 처리합니다.
 
 개발 실행은 Unity Hub에서 `Unity/`를 **6000.3.10f1**로 열고, 임포트·컴파일 완료 후 **Muhanok → Play GameScene**을 누릅니다. `PlayInUnity.cmd`도 같은 씬을 실행합니다. 설정은 `Unity/Assets/Game/Content/Data/GameSettings.asset`에 있습니다.
 
