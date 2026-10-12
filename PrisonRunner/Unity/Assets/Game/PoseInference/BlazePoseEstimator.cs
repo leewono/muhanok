@@ -35,7 +35,11 @@ namespace Muhanok.PoseInference
         private bool flipped;
         private readonly PoseFrame result = new PoseFrame();
         private bool hasResult;
-        private double frameTime, openedAt;
+        private double frameTime, openedAt, stageStarted;
+        private bool gotIndex, gotScore, gotBox;
+        private int detectedIndex;
+        private float detectedScore;
+        private readonly float[] detectedBox = new float[12];
         private string[] candidates = new string[0];
         private int candidate, attempt;
         public PoseStatus Status { get; private set; } = PoseStatus.Off;
@@ -145,10 +149,31 @@ namespace Muhanok.PoseInference
             switch (stage)
             {
                 case Stage.Idle: if (camera.didUpdateThisFrame) Detect(now); break;
-                case Stage.Detecting: if (Ready(pendingIndex) && Ready(pendingScore) && Ready(pendingBox)) ReadDetection(); break;
-                case Stage.Landmarking: if (Ready(pendingLandmarks)) ReadLandmarks(); break;
+                case Stage.Detecting: CollectDetection(now); break;
+                case Stage.Landmarking: CollectLandmarks(now); break;
             }
         }
+        // Unity keeps async readback data only during the frame the request completes, so each output
+        // is copied as soon as it is ready. A failed or stale readback drops that frame instead of throwing.
+        private void CollectDetection(double now)
+        {
+            try
+            {
+                if (!gotIndex && Ready(pendingIndex)) { using (var t = pendingIndex.ReadbackAndClone()) detectedIndex = t[0]; gotIndex = true; }
+                if (!gotScore && Ready(pendingScore)) { using (var t = pendingScore.ReadbackAndClone()) detectedScore = t[0]; gotScore = true; }
+                if (!gotBox && Ready(pendingBox)) { using (var t = pendingBox.ReadbackAndClone()) for (int k = 0; k < 12; k++) detectedBox[k] = t[0, 0, k]; gotBox = true; }
+            }
+            catch (InvalidOperationException) { Drop(); return; }
+            if (gotIndex && gotScore && gotBox) ReadDetection();
+            else if (now - stageStarted > 1) Drop();
+        }
+        private void CollectLandmarks(double now)
+        {
+            if (!Ready(pendingLandmarks)) { if (now - stageStarted > 1) Drop(); return; }
+            try { ReadLandmarks(); }
+            catch (InvalidOperationException) { Drop(); }
+        }
+        private void Drop() { stage = Stage.Idle; gotIndex = gotScore = gotBox = false; }
         private static bool Ready(Tensor tensor) => tensor != null && tensor.IsReadbackRequestDone();
 
         private void Detect(double now)
@@ -163,15 +188,14 @@ namespace Muhanok.PoseInference
             pendingScore = detector.PeekOutput(1) as Tensor<float>;
             pendingBox = detector.PeekOutput(2) as Tensor<float>;
             pendingIndex.ReadbackRequest(); pendingScore.ReadbackRequest(); pendingBox.ReadbackRequest();
+            gotIndex = gotScore = gotBox = false; stageStarted = now;
             stage = Stage.Detecting;
         }
 
         private void ReadDetection()
         {
-            int index; float score; var box = new float[12];
-            using (var i = pendingIndex.ReadbackAndClone()) index = i[0];
-            using (var s = pendingScore.ReadbackAndClone()) score = s[0];
-            using (var b = pendingBox.ReadbackAndClone()) for (int k = 0; k < 12; k++) box[k] = b[0, 0, k];
+            int index = detectedIndex; float score = detectedScore; var box = detectedBox;
+            gotIndex = gotScore = gotBox = false;
             if (score < options.DetectionThreshold || index < 0 || index >= AnchorCount)
             {
                 Publish(false); stage = Stage.Idle; return;
@@ -189,6 +213,7 @@ namespace Muhanok.PoseInference
             landmarker.Schedule(landmarkInput);
             pendingLandmarks = LandmarkOutput();
             pendingLandmarks.ReadbackRequest();
+            stageStarted = frameTime;
             stage = Stage.Landmarking;
         }
 
