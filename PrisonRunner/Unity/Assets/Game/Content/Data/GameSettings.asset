@@ -58,6 +58,10 @@ MonoBehaviour:
     FilterDerivateCutoff: 1
     LostGraceSeconds: 0.5
     DuckHoldSeconds: 1.5
+    LaneHoldSeconds: 0.1
+    ActionVisibility: 0.6
+    RefractorySeconds: 0.3
+    ReacquireLockSeconds: 0.25
     CalibrationFrames: 20
     CalibrationStillness: 0.12
     LaneEnter: 0.3

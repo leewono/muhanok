@@ -22,6 +22,11 @@ namespace Muhanok.Domain
         private bool airborne, handsUp, duckOnLoss;
         // How far the last tracked frame was toward a duck (1 = threshold); a loss after a dip counts as ducking.
         private float dropRatio;
+        private double actionLockUntil, laneCandidateSince;
+        private int laneCandidate;
+        private bool Locked(double now) => now < actionLockUntil;
+        private bool ActionSeen(int i) => vis[i] >= tuning.ActionVisibility;
+        private void Lock(double now, double seconds) { if (now + seconds > actionLockUntil) actionLockUntil = now + seconds; }
         private int stepSign, pumpSign;
         private readonly double[] stepTimes = new double[8];
         private int stepIndex;
@@ -34,7 +39,7 @@ namespace Muhanok.Domain
         public void SetStyle(PlayStyle next) { style = next; Recalibrate(); }
         public void Recalibrate()
         {
-            calibrated = false; samples = 0; smoothed = false; Reading.Clear(); airborne = handsUp = duckOnLoss = false; dropRatio = 0;
+            calibrated = false; samples = 0; smoothed = false; Reading.Clear(); airborne = handsUp = duckOnLoss = false; dropRatio = 0; actionLockUntil = 0; laneCandidate = 0;
             crouchPendingSince = -1; kneeUntil = pumpUntil = 0; stepSign = pumpSign = 0; StepsPerMinute = 0;
             Status = PoseStatus.Calibrating;
         }
@@ -53,6 +58,8 @@ namespace Muhanok.Domain
                 Status = PoseStatus.Searching; Reading.Crouch = Reading.HighKnee = Reading.Active = false; crouchPendingSince = -1;
                 return Reading;
             }
+            // Landmarks right after re-acquiring the body jump around; ignore actions for a moment.
+            if (lostSince >= 0 && calibrated) Lock(now, tuning.ReacquireLockSeconds);
             lostSince = -1;
             if (!calibrated) { Calibrate(frame.Aspect); return Reading; }
             Status = PoseStatus.Tracking;
@@ -123,25 +130,30 @@ namespace Muhanok.Domain
 
         private float Scale() => Clamp(CurrentScale, bScale * .6f, bScale * 1.6f);
 
-        private void UpdateLane(float offset, float enter, float exit, double now)
+        private void UpdateLane(float offset, float enter, float exit, double now, bool locked)
         {
             int lane = Reading.Lane;
             if (lane == 0) { if (offset < -enter) lane = -1; else if (offset > enter) lane = 1; }
             else if (lane < 0) { if (offset > -exit) lane = offset > enter ? 1 : 0; }
             else if (offset < exit) lane = offset < -enter ? -1 : 0;
-            if (lane != Reading.Lane) { Reading.Lane = lane; lastLaneChange = now; }
+            // While locked, or until the new zone has held for a moment, the lane does not change.
+            if (locked || lane == Reading.Lane) { laneCandidate = Reading.Lane; return; }
+            if (lane != laneCandidate) { laneCandidate = lane; laneCandidateSince = now; return; }
+            if (now - laneCandidateSince < tuning.LaneHoldSeconds) return;
+            Reading.Lane = lane; lastLaneChange = now;
         }
 
         private void TrackFull(float aspect, double now)
         {
             float scale = Scale();
             float offset = (CentreX - bCx) / scale;
-            UpdateLane(offset, tuning.LaneEnter, tuning.LaneExit, now);
             float drop = (ShoulderY - bSy) / scale, hipRise = (bHy - HipY) / scale, shoulderRise = (bSy - ShoulderY) / scale;
             dropRatio = drop / tuning.CrouchDrop;
+            // A dip moves the shoulders; it must not read as a sideways step.
+            UpdateLane(offset, tuning.LaneEnter, tuning.LaneExit, now, Locked(now) || airborne || Reading.Crouch || dropRatio > .6f);
             bool feetUp = !AnklesSeen || float.IsNaN(bAnkle) || (bAnkle - AnkleY) / scale > tuning.JumpRise * .5f;
             bool up = hipRise > tuning.JumpRise && shoulderRise > tuning.JumpRise * .8f && feetUp;
-            if (up && !airborne && now - lastJump > .25)
+            if (up && !airborne && now - lastJump > .25 && !Locked(now) && !Reading.Crouch)
             {
                 Reading.JumpEdge = true; lastJump = now;
                 // A dip right before take-off is part of the jump, not a slide.
@@ -151,7 +163,7 @@ namespace Muhanok.Domain
             else if (airborne && hipRise < tuning.JumpRise * .4f) { airborne = false; landingUntil = now + tuning.LandingGraceSeconds; }
             UpdateCrouch(drop > tuning.CrouchDrop && !airborne && now >= landingUntil, drop < tuning.CrouchDrop * .65f, now);
             // High knee: one knee rises toward its hip; squats and tucks move both knees, so require asymmetry.
-            if (KneesSeen && !float.IsNaN(bKneeL))
+            if (KneesSeen && ActionSeen(PoseJoint.LeftKnee) && ActionSeen(PoseJoint.RightKnee) && !float.IsNaN(bKneeL))
             {
                 float liftL = (bKneeL - KneeDrop(PoseJoint.LeftKnee, PoseJoint.LeftHip)) / scale;
                 float liftR = (bKneeR - KneeDrop(PoseJoint.RightKnee, PoseJoint.RightHip)) / scale;
@@ -167,17 +179,21 @@ namespace Muhanok.Domain
 
         private void TrackUpper(float aspect, double now)
         {
-            float scale = Scale();
+            // Leaning toward the camera widens the shoulders; the calibrated width keeps the lane scale steady.
+            float scale = bScale;
             float offset = (CentreX - bCx) / scale;
-            UpdateLane(offset, tuning.UpperLaneEnter, tuning.UpperLaneExit, now);
             float drop = (ShoulderY - bSy) / scale;
             float noseDrop = Seen(PoseJoint.Nose) && !float.IsNaN(bNose) ? (py[PoseJoint.Nose] - bNose) / scale : 0f;
             bool noseDuck = noseDrop > tuning.UpperCrouchDrop * 1.3f;
             dropRatio = Math.Max(drop / tuning.UpperCrouchDrop, noseDrop / (tuning.UpperCrouchDrop * 1.3f));
-            bool wristsSeen = Seen(PoseJoint.LeftWrist) && Seen(PoseJoint.RightWrist);
-            float head = Seen(PoseJoint.Nose) ? py[PoseJoint.Nose] : ShoulderY - scale;
+            bool ducking = Reading.Crouch || crouchPendingSince >= 0 || dropRatio > .5f;
+            if (ducking) Lock(now, tuning.RefractorySeconds);
+            UpdateLane(offset, tuning.UpperLaneEnter, tuning.UpperLaneExit, now, Locked(now));
+            bool wristsSeen = ActionSeen(PoseJoint.LeftWrist) && ActionSeen(PoseJoint.RightWrist);
+            // Hands must rise above the calibrated head height; the live nose drops when ducking and would fake a jump.
+            float head = !float.IsNaN(bNose) ? bNose : bSy - bScale;
             bool hands = wristsSeen && py[PoseJoint.LeftWrist] < head - tuning.UpperHandsAboveNose * scale && py[PoseJoint.RightWrist] < head - tuning.UpperHandsAboveNose * scale;
-            if (hands && !handsUp && now - lastJump > .25) { Reading.JumpEdge = true; lastJump = now; crouchPendingSince = -1; }
+            if (hands && !handsUp && now - lastJump > .25 && !Locked(now)) { Reading.JumpEdge = true; lastJump = now; crouchPendingSince = -1; }
             if (hands) handsUp = true;
             else if (!wristsSeen || py[PoseJoint.LeftWrist] > ShoulderY || py[PoseJoint.RightWrist] > ShoulderY) handsUp = false;
             UpdateCrouch((drop > tuning.UpperCrouchDrop || noseDuck) && !handsUp, drop < tuning.UpperCrouchDrop * .65f && !noseDuck, now);
@@ -198,7 +214,7 @@ namespace Muhanok.Domain
 
         private void UpdateCrouch(bool down, bool released, double now)
         {
-            if (Reading.Crouch) { if (released) Reading.Crouch = false; return; }
+            if (Reading.Crouch) { if (released) { Reading.Crouch = false; Lock(now, tuning.RefractorySeconds); } return; }
             if (!down) { crouchPendingSince = -1; return; }
             if (crouchPendingSince < 0) crouchPendingSince = now;
             if (now - crouchPendingSince >= tuning.CrouchConfirmSeconds) { Reading.Crouch = true; crouchPendingSince = -1; }

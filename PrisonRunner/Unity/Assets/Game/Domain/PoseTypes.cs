@@ -60,6 +60,9 @@ namespace Muhanok.Domain
         public float FilterMinCutoff = .05f, FilterBeta = 80f, FilterDerivateCutoff = 1f;
         // Short dropouts keep the last reading; a body that vanishes while ducking counts as ducking.
         public float LostGraceSeconds = .5f, DuckHoldSeconds = 1.5f;
+        // Gesture conflicts: a lane must hold briefly, actions need confident joints, and ducking or
+        // re-acquiring the body blocks lane/jump for a moment so one movement is not read as several.
+        public float LaneHoldSeconds = .1f, ActionVisibility = .6f, RefractorySeconds = .3f, ReacquireLockSeconds = .25f;
         public int CalibrationFrames = 20;
         public float CalibrationStillness = .12f;
         public float LaneEnter = .30f, LaneExit = .17f;

@@ -46,7 +46,7 @@ namespace Muhanok.Tests
         [Test] public void FullBodyStepsSelectLanesAndReturnToCentre()
         {
             CollectionAssert.AreEqual(new[] { "lane-1", "lane0" }, Play(PlayStyle.FullBody, t => new Body { Dx = In(t, .2, .8) ? -.08f : 0 }, 1.5));
-            CollectionAssert.AreEqual(new[] { "lane-1", "lane0", "lane1", "lane0" }, Play(PlayStyle.FullBody, t => new Body { Dx = In(t, .2, .6) ? -.08f : In(t, .6, 1) ? .08f : 0 }, 1.5));
+            CollectionAssert.AreEqual(new[] { "lane-1", "lane1", "lane0" }, Play(PlayStyle.FullBody, t => new Body { Dx = In(t, .2, .6) ? -.08f : In(t, .6, 1) ? .08f : 0 }, 1.5));
         }
         [Test] public void DipBeforeJumpIsNotASlideAndRepeatedJumpsAllCount()
         {
@@ -99,6 +99,20 @@ namespace Muhanok.Tests
             Assert.Less(smooth, raw * .5, "Standing jitter should at least halve");
             for (int i = 0; i < 15; i++) { var frame = Frame(new Body { Dx = -.1f }, 3 + i / 30.0); smoother.Apply(frame, tuning); last = frame.Points[11].X; }
             Assert.Less(Math.Abs(last - .34f), .01f, "A real step must arrive within half a second");
+        }
+        [Test] public void NoisyDucksDoNotLeakIntoLaneOrJump()
+        {
+            var random = new Random(11);
+            float Noise() => (float)(random.NextDouble() - .5f) * .06f;
+            // Upper body: ducking sways the shoulders and drops the nose under the raised-hands line.
+            var upper = Play(PlayStyle.UpperBody, t => { bool duck = In(t, .2, 1.2); return new Body { Shoulder = duck ? .09f : 0, Dx = duck ? Noise() : 0, WristL = duck ? .45f : .6f, WristR = duck ? .45f : .6f }; }, 2);
+            CollectionAssert.AreEqual(new[] { "crouch", "stand" }, upper);
+            var full = Play(PlayStyle.FullBody, t => { bool duck = In(t, .2, 1.2); return new Body { Shoulder = duck ? .1f : 0, Hip = duck ? .04f : 0, Dx = duck ? Noise() : 0 }; }, 2);
+            CollectionAssert.AreEqual(new[] { "crouch", "stand" }, full);
+        }
+        [Test] public void OneFrameSwayDoesNotChangeLane()
+        {
+            Assert.IsEmpty(Play(PlayStyle.FullBody, t => new Body { Dx = In(t, .5, .55) ? -.09f : 0 }, 1.2));
         }
         [Test] public void LostPoseRecalibratesAfterTimeout()
         {
