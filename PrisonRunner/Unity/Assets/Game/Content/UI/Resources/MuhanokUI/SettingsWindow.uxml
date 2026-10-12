@@ -25,6 +25,8 @@
                     <ui:Toggle name="vsync" label="수직 동기화" class="settings-row" />
                     <ui:DropdownField name="shadow-quality" label="그림자" class="settings-row" />
                     <ui:Toggle name="ambient-occlusion" label="주변광 차폐 (SSAO)" class="settings-row" />
+                    <ui:Slider name="detail-distance" label="소품·조명 표시 거리" low-value="0.5" high-value="1" class="settings-row" />
+                    <ui:Toggle name="gpu-resident-drawer" label="GPU 대량 렌더링 (GPU Resident Drawer)" class="settings-row" />
                     <ui:Toggle name="fullscreen" label="전체 화면" class="settings-row" />
                 </ui:VisualElement>
                 <ui:VisualElement name="page-sound" class="settings-page">

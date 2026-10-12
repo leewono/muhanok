@@ -81,6 +81,13 @@ MonoBehaviour:
     ArmSwingAmplitude: 0.3
     LostSeconds: 2.5
     BaselineDrift: 0.01
+  Render:
+    LookAhead: 72
+    SmallPropSize: 1.2
+    SmallPropShadows: 0
+    DetailDistance: 45
+    LightAhead: 55
+    LightBehind: 12
   UnlockAllItems: 1
   ItemChancePerChunk: 0.35
   MusicVolume: 0.35

@@ -10,6 +10,8 @@ namespace Muhanok.Content
         [Header("Body tracking (Inference Engine)")]
         public PoseCameraOptions Camera = new PoseCameraOptions();
         public MotionTuning Motion = new MotionTuning();
+        [Header("Map rendering budget")]
+        public RenderBudget Render = new RenderBudget();
         [Header("Exhibition")]
         [Tooltip("Exhibition build: every item is available without spending the shared coin pool.")]
         public bool UnlockAllItems = true;

@@ -26,7 +26,7 @@
 
 - 창: `settings-root`, `settings-panel`, `close-button`, `apply-button`, `reset-button`
 - 탭: `tab-graphics`, `tab-sound`, `tab-body`, `tab-display` / 페이지: `page-graphics`, `page-sound`, `page-body`, `page-display`
-- 화면: `quality-preset`, `render-scale`, `frame-cap`, `vsync`, `shadow-quality`, `ambient-occlusion`, `fullscreen`
+- 화면: `quality-preset`, `render-scale`, `frame-cap`, `vsync`, `shadow-quality`, `ambient-occlusion`, `detail-distance`, `gpu-resident-drawer`, `fullscreen`
 - 소리: `music-volume`, `effects-volume`
 - 몸동작: `camera-device`, `lite-model`, `lane-sensitivity`, `camera-preview`(웹캠 영상이 들어가는 칸), `pose-status`, `recalibrate-button`
 - 표시: `performance-overlay`, `pose-diagnostics`
@@ -56,6 +56,8 @@
 | 프레임 제한 / 수직 동기화 | `Application.targetFrameRate`, `QualitySettings.vSyncCount` |
 | 그림자 | 그림자 거리·해상도와 방향광 그림자(끄기/하드/원래 설정) |
 | SSAO | 렌더러의 Screen Space Ambient Occlusion 기능 켜고 끄기 |
+| 소품·조명 표시 거리 | 맵의 작은 소품과 점광원이 켜져 있는 거리 배율(50~100%) |
+| GPU 대량 렌더링 | URP GPU Resident Drawer (반복되는 메시를 인스턴싱으로 묶어 그림) |
 | 웹캠 / 가벼운 모델 / 좌우 민감도 | 포즈 추정기를 해당 장치·모델로 다시 시작, 레인 판정 기준을 민감도로 나눔 |
 
 그래픽 설정은 실행 중 URP 에셋의 **복사본**에 적용하므로 에디터에서 플레이해도 프로젝트 에셋은 바뀌지 않습니다. 게임이 끝나면 원래대로 돌립니다.

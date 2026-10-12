@@ -64,7 +64,7 @@ namespace Muhanok.Bootstrap
             gameObject.AddComponent<CartRideView>().Configure(Session,Hero,CartRidePrefab);
             OutputCamera.GetComponent<CinematicFocus>()?.Configure(Session,Hero);
             var mapRoot = new GameObject("ChunkPool"); mapRoot.transform.SetParent(transform, false);
-            Map = new ChunkSpawner(ChunkPrefabs, mapRoot.transform, Session);
+            Map = new ChunkSpawner(ChunkPrefabs, mapRoot.transform, Session, Settings != null ? Settings.Render : new RenderBudget());
             Map.Decorator = new RuntimeContent(mapRoot.transform, () => Exhibition.Progress.Available(), Settings != null ? Settings.ItemChancePerChunk : .35f);
             CameraRig.Configure(OutputCamera);
             if(OutputCamera.GetComponent<GameViewport>()==null) OutputCamera.gameObject.AddComponent<GameViewport>();
@@ -123,6 +123,7 @@ namespace Muhanok.Bootstrap
         public void ApplySettings(bool save)
         {
             graphics?.Apply(userSettings);
+            if (Map != null) Map.DetailScale = userSettings.DetailDistance;
             audioPlayer?.SetVolumes(userSettings.MusicVolume, userSettings.EffectsVolume);
             Pose.Configure(userSettings.CameraDevice, userSettings.LiteLandmarkModel, userSettings.LaneSensitivity);
             if (overlay != null) overlay.Visible = userSettings.PerformanceOverlay;

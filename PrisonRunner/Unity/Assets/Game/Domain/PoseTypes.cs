@@ -47,6 +47,8 @@ namespace Muhanok.Domain
         public int Width = 640, Height = 480, Fps = 30;
         public bool FullLandmarkModel = true;
         public float DetectionThreshold = .55f;
+        // Upper bound on pose inferences per second; frees GPU time on integrated graphics.
+        public float MaxInferenceRate = 30f;
         public bool ConvertToSrgb = false;
     }
 

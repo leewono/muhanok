@@ -43,6 +43,8 @@ namespace Muhanok.Presentation
             if (!UnityEngine.Application.isEditor && Screen.fullScreen != s.Fullscreen) Screen.fullScreen = s.Fullscreen;
             if (working != null)
             {
+                // Setting the mode re-validates the asset and URP rebuilds the pipeline with or without the drawer.
+                working.gpuResidentDrawerMode = s.GpuResidentDrawer ? GPUResidentDrawerMode.InstancedDrawing : GPUResidentDrawerMode.Disabled;
                 working.renderScale = s.RenderScale;
                 // Below native resolution, FSR upscaling keeps edges sharper than plain bilinear.
                 working.upscalingFilter = s.RenderScale < .99f ? UpscalingFilterSelection.FSR : UpscalingFilterSelection.Auto;

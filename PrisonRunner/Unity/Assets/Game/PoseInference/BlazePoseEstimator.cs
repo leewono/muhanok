@@ -35,7 +35,7 @@ namespace Muhanok.PoseInference
         private bool flipped;
         private readonly PoseFrame result = new PoseFrame();
         private bool hasResult;
-        private double frameTime, openedAt, stageStarted, statsSince;
+        private double frameTime, openedAt, stageStarted, statsSince, lastStart = -10;
         private bool tracking, fromTracking;
         private Vector2 roiHip, roiTop;
         private float roiRadius, shoulderQuality, lastDetectorScore;
@@ -155,7 +155,11 @@ namespace Muhanok.PoseInference
             {
                 // MediaPipe-style: while the body is tracked, the next region comes from the last landmarks
                 // and the detector only runs again after the body is lost.
-                case Stage.Idle: if (camera.didUpdateThisFrame) { if (tracking) Track(now); else Detect(now); } break;
+                case Stage.Idle:
+                    if (!camera.didUpdateThisFrame || now - lastStart < 1.0 / Math.Max(1f, options.MaxInferenceRate)) break;
+                    lastStart = now;
+                    if (tracking) Track(now); else Detect(now);
+                    break;
                 case Stage.Detecting: CollectDetection(now); break;
                 case Stage.Landmarking: CollectLandmarks(now); break;
             }

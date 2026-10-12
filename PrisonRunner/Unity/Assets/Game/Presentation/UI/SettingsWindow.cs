@@ -76,6 +76,8 @@ namespace Muhanok.Presentation
             ToggleBind("vsync", () => s.VSync, v => s.VSync = v);
             Dropdown("shadow-quality", ShadowNames, () => (int)s.Shadows, i => { s.Shadows = (ShadowSetting)i; Custom(); });
             ToggleBind("ambient-occlusion", () => s.AmbientOcclusion, v => { s.AmbientOcclusion = v; Custom(); });
+            ToggleBind("gpu-resident-drawer", () => s.GpuResidentDrawer, v => s.GpuResidentDrawer = v);
+            SliderBind("detail-distance", () => s.DetailDistance, v => { s.DetailDistance = v; Custom(); });
             ToggleBind("fullscreen", () => s.Fullscreen, v => s.Fullscreen = v);
             SliderBind("music-volume", () => s.MusicVolume, v => s.MusicVolume = v);
             SliderBind("effects-volume", () => s.EffectsVolume, v => s.EffectsVolume = v);

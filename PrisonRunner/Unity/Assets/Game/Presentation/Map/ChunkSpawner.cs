@@ -9,10 +9,12 @@ namespace Muhanok.Presentation.Map
         private readonly Queue<MuhanokMapChunk>[] pools;
         private readonly MuhanokMapChunk[] prefabs;
         private readonly Transform parent;
+        private readonly RenderBudget budget;
+        public readonly Dictionary<MuhanokMapChunk, ChunkRenderBudget> Budgets = new Dictionary<MuhanokMapChunk, ChunkRenderBudget>();
         public int CreatedCount { get; private set; }
-        public ChunkPool(MuhanokMapChunk[] chunkPrefabs, Transform root)
+        public ChunkPool(MuhanokMapChunk[] chunkPrefabs, Transform root, RenderBudget renderBudget = null)
         {
-            prefabs = chunkPrefabs; parent = root;
+            prefabs = chunkPrefabs; parent = root; budget = renderBudget;
             pools = new Queue<MuhanokMapChunk>[prefabs.Length];
             for (int i = 0; i < pools.Length; i++)
             {
@@ -25,7 +27,9 @@ namespace Muhanok.Presentation.Map
         private MuhanokMapChunk Create(int index)
         {
             var chunk = Object.Instantiate(prefabs[index], parent);
-            chunk.gameObject.SetActive(false); CreatedCount++; return chunk;
+            chunk.gameObject.SetActive(false); CreatedCount++;
+            if (budget != null) Budgets[chunk] = new ChunkRenderBudget(chunk, budget);
+            return chunk;
         }
         public MuhanokMapChunk Rent(int index)
         {
@@ -57,14 +61,18 @@ namespace Muhanok.Presentation.Map
         private readonly RunSession session;
         private System.Random random;
         private int sequence, seed = 723;
+        private readonly RenderBudget budget;
+        private float runnerZ;
+        // Graphics quality scales the detail/light distances (1 = full).
+        public float DetailScale { get; set; } = 1f;
         private Vector3 nextPosition;
         public IChunkDecorator Decorator { get; set; }
         public IReadOnlyList<ActiveChunk> Active => active;
         public int Spawned => sequence;
         public int CreatedCount => pool.CreatedCount;
-        public ChunkSpawner(MuhanokMapChunk[] prefabs, Transform root, RunSession run)
+        public ChunkSpawner(MuhanokMapChunk[] prefabs, Transform root, RunSession run, RenderBudget renderBudget = null)
         {
-            types = prefabs.Length; session = run; pool = new ChunkPool(prefabs, root); Reset();
+            types = prefabs.Length; session = run; budget = renderBudget; pool = new ChunkPool(prefabs, root, renderBudget); Reset();
         }
         // A new seed gives a different obstacle layout; the authored seed stays the default.
         public void Reset(int layoutSeed)
@@ -85,7 +93,8 @@ namespace Muhanok.Presentation.Map
         {
             for (int i = active.Count - 1; i >= 0; i--)
                 if (active[i].Chunk.Exit.position.z < z - 30f) { Recycle(active[i]); active.RemoveAt(i); }
-            while (nextPosition.z < z + 96f)
+            runnerZ = z;
+            while (nextPosition.z < z + (budget != null ? budget.LookAhead : 96f))
             {
                 int type = RouteSurface.TypeAt(sequence);
                 var chunk = pool.Rent(type);
@@ -95,6 +104,9 @@ namespace Muhanok.Presentation.Map
                 Decorator?.Decorate(chunk, sequence, type, random);
                 nextPosition = chunk.Exit.position; sequence++;
             }
+            if (budget != null)
+                foreach (var item in active)
+                    if (pool.Budgets.TryGetValue(item.Chunk, out var limits)) limits.Apply(item.Chunk.Entry.position.z, runnerZ, budget, DetailScale);
         }
         public void Evaluate(float previousZ)
         {
