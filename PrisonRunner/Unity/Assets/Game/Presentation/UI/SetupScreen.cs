@@ -19,11 +19,12 @@ namespace Muhanok.Presentation
             if (visitor != null) { name = visitor.Name; weightText = visitor.Weight; style = visitor.Style; }
             data?.PreviewStyle(style);
         }
-        public void Draw(IHudData data, Action<VisitorProfile> beginRun)
+        public void Draw(IHudData data, Action<VisitorProfile> beginRun, Action openSettings = null)
         {
             skin.Card(new Rect(0, 0, 1280, 720), new Color(.025f, .035f, .06f, .82f));
             skin.Card(new Rect(150, 70, 980, 590), new Color(.055f, .075f, .11f, .97f));
             GUI.color = new Color(1, .78f, .32f); GUI.Label(new Rect(195, 92, 500, 50), "탈출 준비", skin.Style(36, FontStyle.Bold));
+            if (openSettings != null && skin.FlatButton(new Rect(950, 92, 140, 44), "설정", false)) openSettings();
             GUI.color = Color.white;
             GUI.Label(new Rect(195, 150, 200, 34), "이름 (순위표)", skin.Label);
             GUI.SetNextControlName("MuhanokName"); name = GUI.TextField(new Rect(195, 186, 400, 50), name, 10, skin.Input);

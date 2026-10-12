@@ -35,6 +35,7 @@
 - GameScene에서 title → 8초 Timeline → Cinemachine 1인칭 → Running → Caught → Result → Retry. Scene reload 금지.
 - 본편 1인칭, 3 lane X -2.2 / 0 / +2.2, 24m chunk, pooling.
 - 몸동작은 Unity Inference Engine에서 BlazePose(검출기+랜드마크)로 추정하고 Domain의 MotionClassifier가 전신/상체 명령으로 바꾼다. Python PoseServer와 UDP 입력은 2026-10-10에 제거했다. 상세는 docs/BODY_TRACKING.md.
+- 게임 설정창은 UI Toolkit(Resources/MuhanokUI/SettingsWindow.uxml/.uss)이고 UI/UX 팀이 그래픽을 입힌다. 코드가 찾는 요소 name은 docs/SETTINGS_UI.md에 있으며 바꾸지 않는다. F1 설정, F3 성능 측정 표시.
 - Domain은 UnityEngine 없이 유지. 기존 Core LaneRules는 재사용한다. 프로젝트에는 GameScene만 둔다. RunnerMVP·CellBlockVerticalSlice 시연 씬과 전용 스크립트·아트는 2026-10-10에 삭제했다.
 - 캐릭터는 자체 Blender Humanoid 모델이다. 달리기/점프/숙이기/비틀거림은 실제 Mixamo 동작, 채굴/아이디어 등은 자체 Blender 동작이다. 참고 이미지 수준의 최종 아트는 남아 있다. 미임포트 상용 상품을 사용했다고 추정하지 않는다. 후보와 교체 지점: docs/ASSET_CATALOG.md.
 - 기존 패키지 버전 업그레이드 금지. 필수 Timeline과 audio/animation/director/particlesystem 활성화 사유는 계획 문서에 기록되어 있다.

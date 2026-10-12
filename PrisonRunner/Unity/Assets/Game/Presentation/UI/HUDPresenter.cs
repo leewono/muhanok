@@ -17,6 +17,9 @@ namespace Muhanok.Presentation
         public Action<VisitorProfile> BeginRun;
         public Action PauseRun;
         public Action NextVisitor;
+        public Action OpenSettings;
+        // The UI Toolkit settings window draws over the game; the IMGUI HUD hides meanwhile.
+        public bool Hidden { get; set; }
         public bool SetupOpen { get; private set; }
         public bool Loading { get; private set; }
         public bool Revealing => revealRemaining > 0;
@@ -45,18 +48,18 @@ namespace Muhanok.Presentation
         private void Update() { revealRemaining = Mathf.Max(0, revealRemaining - Time.unscaledDeltaTime); }
         private void OnGUI()
         {
-            if (session == null) return;
+            if (session == null || Hidden) return;
             Matrix4x4 old = GUI.matrix;
             GUI.matrix = ViewportLayout.GuiMatrix;
             var state = session.Flow.State;
             if (state != GameFlowState.Result) result.Hide();
             if (Loading || Revealing) loading.Draw(LoadingImage, LoadingProgress, Loading, RevealOpacity);
-            else if (SetupOpen) setup.Draw(Data, BeginRun);
+            else if (SetupOpen) setup.Draw(Data, BeginRun, OpenSettings);
             else if (state == GameFlowState.TitleIdle) title.Draw(TitleLogo, Fade);
             else if (state == GameFlowState.Running || state == GameFlowState.Caught)
             {
                 runHud.Draw(session, Map, Fade, Data, PauseRun);
-                if (session.Paused) pause.Draw(PauseRun);
+                if (session.Paused) pause.Draw(PauseRun, OpenSettings);
             }
             else if (state == GameFlowState.Result) result.Draw(session, Data, retry, NextVisitor);
             GUI.color = Color.white; GUI.matrix = old;

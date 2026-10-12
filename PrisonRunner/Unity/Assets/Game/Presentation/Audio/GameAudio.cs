@@ -38,6 +38,7 @@ namespace Muhanok.Presentation
             var node = new GameObject(id); node.transform.SetParent(transform, false);
             var source = node.AddComponent<AudioSource>(); source.playOnAwake = false; source.loop = loop; source.spatialBlend = 0; return source;
         }
+        public void SetVolumes(float musicLevel, float effectsLevel) { musicVolume = Mathf.Clamp01(musicLevel); effectsVolume = Mathf.Clamp01(effectsLevel); }
         public void Countdown(bool final) { if (effects != null) effects.PlayOneShot(final ? go : beep, effectsVolume); }
 
         private void Update()

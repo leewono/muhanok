@@ -114,6 +114,15 @@ namespace Muhanok.Tests
         {
             Assert.IsEmpty(Play(PlayStyle.FullBody, t => new Body { Dx = In(t, .5, .55) ? -.09f : 0 }, 1.2));
         }
+        [Test] public void SettingsPresetsChangeGraphicsOnlyAndClampKeepsValuesSafe()
+        {
+            var settings = new UserSettings { MusicVolume = .2f, LaneSensitivity = 1.2f };
+            settings.ApplyPreset(QualityPreset.Low);
+            Assert.AreEqual(.7f, settings.RenderScale, .001f); Assert.AreEqual(ShadowSetting.Off, settings.Shadows); Assert.IsFalse(settings.AmbientOcclusion); Assert.AreEqual(30, settings.FrameCap);
+            Assert.AreEqual(.2f, settings.MusicVolume, .001f); Assert.AreEqual(1.2f, settings.LaneSensitivity, .001f);
+            settings.RenderScale = 3; settings.FrameCap = 45; settings.LaneSensitivity = 9; settings.CameraDevice = null; settings.Clamp();
+            Assert.AreEqual(1f, settings.RenderScale); Assert.AreEqual(60, settings.FrameCap); Assert.AreEqual(1.4f, settings.LaneSensitivity, .001f); Assert.AreEqual("", settings.CameraDevice);
+        }
         [Test] public void LostPoseRecalibratesAfterTimeout()
         {
             var classifier = new MotionClassifier(new MotionTuning()); classifier.SetStyle(PlayStyle.FullBody);

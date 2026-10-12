@@ -76,7 +76,7 @@ namespace Muhanok.Infrastructure
     {
         private readonly PoseCameraOptions options;
         private readonly MotionClassifier classifier;
-        private readonly MotionTuning tuning;
+        private readonly MotionTuning tuning, baseTuning;
         private readonly LandmarkSmoother smoother = new LandmarkSmoother();
         private readonly PoseCommandSource commands;
         private readonly PoseFrame incoming = new PoseFrame();
@@ -105,7 +105,9 @@ namespace Muhanok.Infrastructure
         }
         public PoseTracker(PoseGameInput output, PoseCameraOptions camera, MotionTuning tuning, Func<int> lane, Func<bool> riding)
         {
-            options = camera ?? new PoseCameraOptions(); this.tuning = tuning ?? new MotionTuning(); classifier = new MotionClassifier(this.tuning);
+            // Work on copies: settings change them at runtime and must not edit the GameSettings asset.
+            options = Copy(camera ?? new PoseCameraOptions()); baseTuning = Copy(tuning ?? new MotionTuning());
+            this.tuning = Copy(baseTuning); classifier = new MotionClassifier(this.tuning);
             commands = new PoseCommandSource(output, lane, riding);
         }
         public void SetStyle(PlayStyle style)
@@ -120,6 +122,26 @@ namespace Muhanok.Infrastructure
                 estimatorFailed = estimator == null;
             }
             estimator?.Start();
+        }
+        private static T Copy<T>(T value) => JsonUtility.FromJson<T>(JsonUtility.ToJson(value));
+        public static string[] CameraDevices()
+        {
+            var devices = WebCamTexture.devices; var names = new string[devices.Length];
+            for (int i = 0; i < devices.Length; i++) names[i] = devices[i].name;
+            return names;
+        }
+        // Settings window: camera device, landmark model size and lane sensitivity (>1 = smaller movement needed).
+        public void Configure(string device, bool liteModel, float laneSensitivity)
+        {
+            float k = Mathf.Clamp(laneSensitivity, .6f, 1.4f);
+            tuning.LaneEnter = baseTuning.LaneEnter / k; tuning.LaneExit = baseTuning.LaneExit / k;
+            tuning.UpperLaneEnter = baseTuning.UpperLaneEnter / k; tuning.UpperLaneExit = baseTuning.UpperLaneExit / k;
+            device = device ?? "";
+            if (device == options.DeviceName && liteModel == !options.FullLandmarkModel) return;
+            options.DeviceName = device; options.FullLandmarkModel = !liteModel;
+            // A new camera or model needs a fresh estimator; restart it if a camera style is active.
+            estimator?.Dispose(); estimator = null; estimatorFailed = false;
+            if (UsesCamera) { var style = Style; Style = PlayStyle.Keyboard; SetStyle(style); }
         }
         public void Recalibrate() { classifier.Recalibrate(); smoother.Reset(); commands.Reset(0); }
         public void ResetCommands() => commands.Reset(classifier.Reading.Lane);
