@@ -35,7 +35,9 @@ namespace Muhanok.PoseInference
         private bool flipped;
         private readonly PoseFrame result = new PoseFrame();
         private bool hasResult;
-        private double frameTime;
+        private double frameTime, openedAt;
+        private string[] candidates = new string[0];
+        private int candidate, attempt;
         public PoseStatus Status { get; private set; } = PoseStatus.Off;
         public string Message { get; private set; } = "";
         public Texture CameraTexture => camera;
@@ -45,23 +47,53 @@ namespace Muhanok.PoseInference
         public void Start()
         {
             if (!Load()) { Status = PoseStatus.NoModel; return; }
-            if (camera == null)
+            stage = Stage.Idle;
+            if (camera != null) { if (!camera.isPlaying) { camera.Play(); openedAt = Time.realtimeSinceStartupAsDouble; } Status = PoseStatus.Starting; return; }
+            var devices = WebCamTexture.devices;
+            if (devices.Length == 0) { Status = PoseStatus.NoCamera; Message = "연결된 웹캠이 없습니다."; Debug.LogWarning("Muhanok pose: no webcam devices."); return; }
+            // Preferred device first, then real cameras, then virtual ones (OBS and similar often fail to start).
+            var names = new System.Collections.Generic.List<string>();
+            foreach (var d in devices) if (!string.IsNullOrEmpty(options.DeviceName) && d.name.Contains(options.DeviceName)) names.Add(d.name);
+            foreach (var d in devices) if (!names.Contains(d.name) && !IsVirtual(d.name)) names.Add(d.name);
+            foreach (var d in devices) if (!names.Contains(d.name)) names.Add(d.name);
+            candidates = names.ToArray(); candidate = 0; attempt = 0;
+            Debug.Log("Muhanok pose: webcams = " + string.Join(", ", candidates));
+            Open();
+        }
+        private static bool IsVirtual(string name)
+        {
+            string n = name.ToLowerInvariant();
+            return n.Contains("virtual") || n.Contains("obs") || n.Contains("snap camera") || n.Contains("xsplit") || n.Contains("nvidia broadcast");
+        }
+        // Attempt 0 asks for the configured size; attempt 1 lets the driver choose its default mode.
+        private void Open()
+        {
+            string device = candidates[candidate];
+            camera = attempt == 0 ? new WebCamTexture(device, options.Width, options.Height, options.Fps) : new WebCamTexture(device);
+            camera.Play(); openedAt = Time.realtimeSinceStartupAsDouble;
+            Message = device; Status = PoseStatus.Starting;
+        }
+        // The driver failed to deliver frames: try the default mode, then the next device.
+        private void Retry()
+        {
+            Debug.LogWarning("Muhanok pose: webcam '" + candidates[candidate] + "' did not start" + (attempt == 0 ? " at " + options.Width + "x" + options.Height + "; trying its default mode." : "; trying the next device."));
+            camera.Stop(); UnityEngine.Object.Destroy(camera); camera = null;
+            if (++attempt > 1) { attempt = 0; candidate++; }
+            if (candidate >= candidates.Length)
             {
-                var devices = WebCamTexture.devices;
-                if (devices.Length == 0) { Status = PoseStatus.NoCamera; Message = "연결된 웹캠이 없습니다."; return; }
-                string device = devices[0].name;
-                foreach (var d in devices) if (!string.IsNullOrEmpty(options.DeviceName) && d.name.Contains(options.DeviceName)) device = d.name;
-                camera = new WebCamTexture(device, options.Width, options.Height, options.Fps);
-                Message = device;
+                Status = PoseStatus.NoCamera;
+                Message = "웹캠을 열 수 없습니다. 다른 프로그램이 카메라를 쓰고 있는지, Windows 설정 > 개인 정보 > 카메라에서 데스크톱 앱 접근이 켜져 있는지 확인하세요.";
+                Debug.LogWarning("Muhanok pose: " + Message);
+                return;
             }
-            if (!camera.isPlaying) camera.Play();
-            Status = PoseStatus.Starting; stage = Stage.Idle;
+            Open();
         }
 
         public void Stop()
         {
             if (camera != null && camera.isPlaying) camera.Stop();
-            Status = PoseStatus.Off; hasResult = false;
+            if (Status != PoseStatus.NoCamera) Status = PoseStatus.Off;
+            hasResult = false;
         }
 
         private bool Load()
@@ -103,8 +135,12 @@ namespace Muhanok.PoseInference
 
         public void Tick(double now)
         {
-            if (!loaded || camera == null || !camera.isPlaying) return;
-            if (camera.width <= 16) { Status = PoseStatus.Starting; return; }
+            if (!loaded || camera == null || Status == PoseStatus.Off) return;
+            if (!camera.isPlaying || camera.width <= 16)
+            {
+                if (now - openedAt > 3) Retry(); else Status = PoseStatus.Starting;
+                return;
+            }
             if (Status == PoseStatus.Starting) Status = PoseStatus.Tracking;
             switch (stage)
             {

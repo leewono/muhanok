@@ -10,6 +10,7 @@ namespace Muhanok.Presentation
         Texture CameraTexture { get; }
         PoseFrame PoseFrame { get; }
         PoseStatus PoseStatus { get; }
+        string PoseMessage { get; }
         float CalibrationProgress { get; }
         float StepsPerMinute { get; }
         bool BodyActive { get; }
@@ -64,6 +65,8 @@ namespace Muhanok.Presentation
             GUI.color = Color.white;
             if (!showStatus) return;
             var status = data.PoseStatus;
+            if ((status == PoseStatus.NoCamera || status == PoseStatus.NoModel) && !string.IsNullOrEmpty(data.PoseMessage))
+                GUI.Label(new Rect(area.x + 16, area.y + 16, area.width - 32, area.height - 70), data.PoseMessage, skin.Style(16, FontStyle.Normal));
             string text = PoseStatusText.Korean(status);
             if (status == PoseStatus.Tracking && data.StepsPerMinute > 0) text += "  ·  " + Mathf.RoundToInt(data.StepsPerMinute) + "걸음/분";
             var label = new Rect(area.x, area.yMax - 34, area.width, 30);

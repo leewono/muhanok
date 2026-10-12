@@ -278,6 +278,7 @@ namespace Muhanok.Bootstrap
         Texture IHudData.CameraTexture => Pose.CameraTexture;
         PoseFrame IHudData.PoseFrame => Pose.LastFrame;
         PoseStatus IHudData.PoseStatus => Pose.Status;
+        string IHudData.PoseMessage => Pose.Message;
         float IHudData.CalibrationProgress => Pose.CalibrationProgress;
         float IHudData.StepsPerMinute => Pose.StepsPerMinute;
         bool IHudData.BodyActive => Pose.Tracking && Pose.Reading.Active;
