@@ -63,8 +63,8 @@ MonoBehaviour:
     HighKneeLift: 0.22
     HighKneeHoldSeconds: 0.35
     StepLift: 0.06
-    UpperLaneEnter: 0.45
-    UpperLaneExit: 0.28
+    UpperLaneEnter: 0.38
+    UpperLaneExit: 0.22
     UpperCrouchDrop: 0.35
     UpperHandsAboveNose: 0.2
     ArmPumpAmplitude: 0.6

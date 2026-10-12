@@ -35,7 +35,7 @@ namespace Muhanok.Domain
     {
         public static string Korean(PoseStatus status) =>
             status == PoseStatus.Off ? "카메라 꺼짐" : status == PoseStatus.Starting ? "카메라 준비 중" : status == PoseStatus.NoCamera ? "웹캠 없음"
-            : status == PoseStatus.NoModel ? "포즈 모듈 없음" : status == PoseStatus.Searching ? "사람을 찾는 중" : status == PoseStatus.Calibrating ? "바르게 서 주세요" : "인식 중";
+            : status == PoseStatus.NoModel ? "포즈 모듈 없음" : status == PoseStatus.Searching ? "사람을 찾는 중" : status == PoseStatus.Calibrating ? "가만히 서 주세요 (자세 맞추는 중)" : "인식 완료";
     }
 
     [Serializable]
@@ -60,7 +60,7 @@ namespace Muhanok.Domain
         public float CrouchDrop = .26f, CrouchConfirmSeconds = .12f, LandingGraceSeconds = .3f;
         public float JumpRise = .15f;
         public float HighKneeLift = .22f, HighKneeHoldSeconds = .35f, StepLift = .06f;
-        public float UpperLaneEnter = .45f, UpperLaneExit = .28f, UpperCrouchDrop = .35f, UpperHandsAboveNose = .2f;
+        public float UpperLaneEnter = .38f, UpperLaneExit = .22f, UpperCrouchDrop = .35f, UpperHandsAboveNose = .2f;
         public float ArmPumpAmplitude = .6f, ArmSwingAmplitude = .3f;
         public float LostSeconds = 2.5f, BaselineDrift = .01f;
     }

@@ -83,6 +83,7 @@ namespace Muhanok.Infrastructure
         public MotionReading Reading => classifier.Reading;
         public float CalibrationProgress => classifier.CalibrationProgress;
         public float StepsPerMinute => classifier.StepsPerMinute;
+        public double LastJumpTime { get; private set; } = -10;
         public Texture CameraTexture => estimator?.CameraTexture;
         public string Message => estimator?.Message ?? "";
         public bool UsesCamera => PlayStyleInfo.UsesCamera(Style);
@@ -124,6 +125,7 @@ namespace Muhanok.Infrastructure
             if (!estimator.TryTakeFrame(incoming)) return;
             LastFrame.CopyFrom(incoming);
             var reading = classifier.Update(incoming);
+            if (reading.JumpEdge) LastJumpTime = now;
             if (feedCommands && classifier.Status == PoseStatus.Tracking) commands.Feed(reading, now);
             else commands.Reset(reading.Lane);
         }

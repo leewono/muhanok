@@ -279,6 +279,8 @@ namespace Muhanok.Bootstrap
         PoseFrame IHudData.PoseFrame => Pose.LastFrame;
         PoseStatus IHudData.PoseStatus => Pose.Status;
         string IHudData.PoseMessage => Pose.Message;
+        MotionReading IHudData.Motion => Pose.Reading;
+        float IHudData.SecondsSinceJump => (float)(Time.realtimeSinceStartupAsDouble - Pose.LastJumpTime);
         float IHudData.CalibrationProgress => Pose.CalibrationProgress;
         float IHudData.StepsPerMinute => Pose.StepsPerMinute;
         bool IHudData.BodyActive => Pose.Tracking && Pose.Reading.Active;
