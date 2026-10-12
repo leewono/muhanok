@@ -1,0 +1,36 @@
+// Samples the webcam image through a 2D affine transform into an NHWC float tensor (values 0..1).
+// Tensor pixel (x right, y down) maps to source pixel (x right, y up) as Row0/Row1 * (x, y, 1).
+#pragma kernel SampleAffine
+
+Texture2D<float4> Source;
+SamplerState LinearClampSampler;
+RWStructuredBuffer<float> Output;
+
+uint OutWidth;
+uint OutHeight;
+uint SourceWidth;
+uint SourceHeight;
+float4 Row0;
+float4 Row1;
+uint ToSrgb;
+
+[numthreads(8, 8, 1)]
+void SampleAffine(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= OutWidth || id.y >= OutHeight)
+        return;
+    float2 p = float2(id.x, id.y);
+    float2 source = float2(dot(Row0.xy, p) + Row0.z, dot(Row1.xy, p) + Row1.z);
+    float2 uv = source / float2(SourceWidth, SourceHeight);
+    bool inside = uv.x >= 0 && uv.x <= 1 && uv.y >= 0 && uv.y <= 1;
+    float4 c = inside ? Source.SampleLevel(LinearClampSampler, uv, 0) : float4(0, 0, 0, 0);
+    if (ToSrgb != 0)
+    {
+        bool3 high = c.rgb > 0.0031308f;
+        c.rgb = lerp(12.92f * c.rgb, 1.055f * pow(abs(c.rgb), 1.0f / 2.4f) - 0.055f, high);
+    }
+    uint o = (id.y * OutWidth + id.x) * 3;
+    Output[o + 0] = c.r;
+    Output[o + 1] = c.g;
+    Output[o + 2] = c.b;
+}

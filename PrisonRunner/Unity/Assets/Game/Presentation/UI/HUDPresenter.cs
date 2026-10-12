@@ -4,75 +4,66 @@ using UnityEngine;
 
 namespace Muhanok.Presentation
 {
-    public sealed partial class HUDPresenter : MonoBehaviour
+    // UI root: owns the start overlay state and draws exactly one screen for the current game state.
+    public sealed class HUDPresenter : MonoBehaviour
     {
         private RunSession session;
         public Muhanok.Presentation.Map.ChunkSpawner Map;
-        private Func<float> bestDistance;
-        private Func<int> bestScore;
-        private Func<string> poseStatus;
         private Action retry;
-        private GUIStyle large, small, label, button, titlePrompt;
-        private Font font;
         public float Fade { get; set; } = 1f;
         public Texture2D TitleLogo;
-        public void Configure(RunSession run, Func<float> distance, Func<int> score, Func<string> pose, Action again)
+        public Texture2D LoadingImage;
+        public IHudData Data;
+        public Action<VisitorProfile> BeginRun;
+        public Action PauseRun;
+        public Action NextVisitor;
+        public Action OpenSettings;
+        // The UI Toolkit settings window draws over the game; the IMGUI HUD hides meanwhile.
+        public bool Hidden { get; set; }
+        public bool SetupOpen { get; private set; }
+        public bool Loading { get; private set; }
+        public bool Revealing => revealRemaining > 0;
+        public float RevealOpacity => Mathf.SmoothStep(0, 1, revealRemaining / .85f);
+        public bool BlocksStart => SetupOpen || Loading || Revealing;
+        public float LoadingProgress { get; set; }
+        private float revealRemaining;
+        private HudSkin skin;
+        private TitleScreen title;
+        private SetupScreen setup;
+        private LoadingScreen loading;
+        private RunHud runHud;
+        private PauseScreen pause;
+        private ResultScreen result;
+        public void Configure(RunSession run, Action again)
         {
-            session = run; bestDistance = distance; bestScore = score; poseStatus = pose; retry = again;
-            font = Font.CreateDynamicFontFromOSFont(new[] { "Malgun Gothic", "Arial" }, 28);
+            session = run; retry = again;
+            skin = new HudSkin();
+            title = new TitleScreen(skin); setup = new SetupScreen(skin); loading = new LoadingScreen(skin);
+            runHud = new RunHud(skin); pause = new PauseScreen(skin); result = new ResultScreen(skin);
         }
+        public void OpenSetup() { SetupOpen = true; setup.Open(Data); }
+        public void CloseSetup() { SetupOpen = false; Loading = false; revealRemaining = 0; }
+        public void BeginLoading() { SetupOpen = false; Loading = true; }
+        public void EndLoading() { Loading = false; revealRemaining = .85f; }
+        private void Update() { revealRemaining = Mathf.Max(0, revealRemaining - Time.unscaledDeltaTime); }
         private void OnGUI()
         {
-            if (session == null) return;
-            if (large == null)
-            {
-                large = Style(74, FontStyle.Bold); small = Style(20, FontStyle.Normal);
-                label = Style(25, FontStyle.Bold); button = new GUIStyle(GUI.skin.button) { font = font, fontSize = 22 };
-                titlePrompt=new GUIStyle(label) { alignment=TextAnchor.MiddleCenter };
-            }
+            if (session == null || Hidden) return;
             Matrix4x4 old = GUI.matrix;
             GUI.matrix = ViewportLayout.GuiMatrix;
             var state = session.Flow.State;
-            if(Loading||SetupOpen||Revealing)
-            {
-                DrawStartOverlay(); GUI.color=Color.white; GUI.matrix=old; return;
-            }
-            if (state == GameFlowState.TitleIdle)
-            {
-                GUI.color = new Color(1f, 1f, 1f, Fade);
-                if (TitleLogo != null) GUI.DrawTexture(new Rect(40, 65, 485, 310), TitleLogo, ScaleMode.ScaleToFit, true);
-                else GUI.Label(new Rect(76, 170, 650, 115), "무한옥", large);
-                GUI.color = new Color(0,0,0,.65f*Fade); GUI.DrawTexture(new Rect(350,632,580,57),Texture2D.whiteTexture);
-                GUI.color = new Color(1f, .88f, .61f, Fade);
-                GUI.Label(new Rect(400, 641, 480, 42), "게임 시작", titlePrompt);
-            }
+            if (state != GameFlowState.Result) result.Hide();
+            if (Loading || Revealing) loading.Draw(LoadingImage, LoadingProgress, Loading, RevealOpacity);
+            else if (SetupOpen) setup.Draw(Data, BeginRun, OpenSettings);
+            else if (state == GameFlowState.TitleIdle) title.Draw(TitleLogo, Fade);
             else if (state == GameFlowState.Running || state == GameFlowState.Caught)
             {
-                GUI.color = new Color(1, 1, 1, Fade);
-                DrawRunCards();
-                GUI.color = Color.white;
-                GUI.Label(new Rect(960, 641, 300, 42), "POSE  " + poseStatus(), small);
-                GUI.Label(new Rect(30, 667, 860, 32),session.Runner.Riding?"A / D  좌우 기울이기 · 무너진 철로 반대쪽으로":"A / D  레인     SPACE  점프     S / ↓  슬라이드     W  하이니",small);
-                if (state == GameFlowState.Caught) GUI.Label(new Rect(350, 294, 900, 100),session.Reason==CaptureReason.BananaPursuit?"경찰에게 잡혔어요!":session.Reason==CaptureReason.BrokenRail?"철로에서 추락!":"충돌!",Style(48,FontStyle.Bold));
-                if(session.Paused) DrawPause();
+                runHud.Draw(session, Map, Fade, Data, PauseRun);
+                if (session.Paused) pause.Draw(PauseRun, OpenSettings);
             }
-            else if (state == GameFlowState.Result)
-            {
-                Card(new Rect(355,112,570,520),new Color(.05f,.07f,.1f,.93f));
-                GUI.color = new Color(1f, .2f, .1f); GUI.Label(new Rect(417, 151, 510, 90), "GAME OVER", StyleCachedResult());
-                GUI.color = Color.white;
-                GUI.Label(new Rect(408, 280, 510, 40), "Distance          " + session.Score.Distance.ToString("N0") + " m", label);
-                GUI.Label(new Rect(408, 332, 510, 40), "Score               " + session.Score.Score.ToString("N0"), label);
-                GUI.Label(new Rect(408, 388, 510, 40), "Best Distance   " + bestDistance().ToString("N0") + " m", small);
-                GUI.Label(new Rect(408, 434, 510, 40), "Best Score        " + bestScore().ToString("N0"), small);
-                if(session.Workout.WeightKg.HasValue) GUI.Label(new Rect(408,477,510,35),"예상 소모  "+session.Workout.EstimatedKcal.ToString("F1")+" kcal",small);
-                if (GUI.Button(new Rect(423, 528, 435, 61), "다시 하기", button)) retry();
-            }
+            else if (state == GameFlowState.Result) result.Draw(session, Data, retry, NextVisitor);
             GUI.color = Color.white; GUI.matrix = old;
         }
-        private GUIStyle resultStyle;
-        private GUIStyle StyleCachedResult() { if (resultStyle == null) resultStyle = Style(48, FontStyle.Bold); return resultStyle; }
-        private GUIStyle Style(int size, FontStyle weight) => new GUIStyle(GUI.skin.label) { font = font, fontSize = size, fontStyle = weight, normal = { textColor = Color.white } };
-        private void OnDestroy() { if (font != null) Destroy(font);if(panelTexture!=null)Destroy(panelTexture);if(coinIcon!=null)Destroy(coinIcon);if(distanceIcon!=null)Destroy(distanceIcon); }
+        private void OnDestroy() { skin?.Dispose(); }
     }
 }

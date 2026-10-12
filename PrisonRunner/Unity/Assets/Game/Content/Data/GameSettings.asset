@@ -31,7 +31,64 @@ MonoBehaviour:
     CartSpeed: 9
     BananaCatchSeconds: 1.2
     SpeedRampDistance: 120
-  UdpPort: 5055
-  Confidence: 0.65
-  PoseTimeout: 2
-  CommandCooldown: 0.35
+    InputBufferSeconds: 0.2
+    IntervalMode: 1
+    SprintSpeed: 6
+    SprintSpeedStep: 0.5
+    MaxSprintSpeed: 9.5
+    RestSpeed: 5
+    SprintSeconds: 40
+    RestSeconds: 20
+    SpeedChangeRate: 2.5
+    RandomizeLayout: 1
+  Camera:
+    DeviceName: 
+    Width: 640
+    Height: 480
+    Fps: 30
+    FullLandmarkModel: 1
+    DetectionThreshold: 0.55
+    ConvertToSrgb: 0
+  Motion:
+    MinVisibility: 0.5
+    UpperMinVisibility: 0.3
+    Smoothing: 0.85
+    FilterMinCutoff: 0.05
+    FilterBeta: 80
+    FilterDerivateCutoff: 1
+    LostGraceSeconds: 0.5
+    DuckHoldSeconds: 1.5
+    LaneHoldSeconds: 0.1
+    ActionVisibility: 0.6
+    RefractorySeconds: 0.3
+    ReacquireLockSeconds: 0.25
+    CalibrationFrames: 20
+    CalibrationStillness: 0.12
+    LaneEnter: 0.3
+    LaneExit: 0.17
+    CrouchDrop: 0.26
+    CrouchConfirmSeconds: 0.12
+    LandingGraceSeconds: 0.3
+    JumpRise: 0.15
+    HighKneeLift: 0.22
+    HighKneeHoldSeconds: 0.35
+    StepLift: 0.06
+    UpperLaneEnter: 0.38
+    UpperLaneExit: 0.22
+    UpperCrouchDrop: 0.35
+    UpperHandsAboveNose: 0.2
+    ArmPumpAmplitude: 0.6
+    ArmSwingAmplitude: 0.3
+    LostSeconds: 2.5
+    BaselineDrift: 0.01
+  Render:
+    LookAhead: 72
+    SmallPropSize: 1.2
+    SmallPropShadows: 0
+    DetailDistance: 45
+    LightAhead: 55
+    LightBehind: 12
+  UnlockAllItems: 1
+  ItemChancePerChunk: 0.35
+  MusicVolume: 0.35
+  EffectsVolume: 0.7

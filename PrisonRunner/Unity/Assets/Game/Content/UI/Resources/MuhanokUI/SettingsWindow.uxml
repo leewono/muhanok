@@ -1,0 +1,59 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <!--
+        Muhanok settings window (placeholder art).
+        UI/UX: change visuals in SettingsWindow.uss or in UI Builder. Keep the element *names* (name="...");
+        SettingsWindow.cs finds controls by name. Classes (class="...") are only for styling and can be added freely.
+    -->
+    <Style src="SettingsWindow.uss" />
+    <ui:VisualElement name="settings-root" class="settings-root">
+        <ui:VisualElement name="settings-panel" class="settings-panel">
+            <ui:VisualElement name="settings-header" class="settings-header">
+                <ui:Label name="settings-title" text="설정" class="settings-title" />
+                <ui:Button name="close-button" text="닫기" class="settings-button settings-button--close" />
+            </ui:VisualElement>
+            <ui:VisualElement name="tab-bar" class="settings-tab-bar">
+                <ui:Button name="tab-graphics" text="화면" class="settings-tab" />
+                <ui:Button name="tab-sound" text="소리" class="settings-tab" />
+                <ui:Button name="tab-body" text="몸동작" class="settings-tab" />
+                <ui:Button name="tab-display" text="표시" class="settings-tab" />
+            </ui:VisualElement>
+            <ui:ScrollView name="settings-content" class="settings-content">
+                <ui:VisualElement name="page-graphics" class="settings-page">
+                    <ui:DropdownField name="quality-preset" label="화질" class="settings-row" />
+                    <ui:Slider name="render-scale" label="렌더 해상도" low-value="0.5" high-value="1" show-input-field="false" class="settings-row" />
+                    <ui:DropdownField name="frame-cap" label="프레임 제한" class="settings-row" />
+                    <ui:Toggle name="vsync" label="수직 동기화" class="settings-row" />
+                    <ui:DropdownField name="shadow-quality" label="그림자" class="settings-row" />
+                    <ui:Toggle name="ambient-occlusion" label="주변광 차폐 (SSAO)" class="settings-row" />
+                    <ui:Slider name="detail-distance" label="소품·조명 표시 거리" low-value="0.5" high-value="1" class="settings-row" />
+                    <ui:Toggle name="gpu-resident-drawer" label="GPU 대량 렌더링 (GPU Resident Drawer)" class="settings-row" />
+                    <ui:Toggle name="fullscreen" label="전체 화면" class="settings-row" />
+                </ui:VisualElement>
+                <ui:VisualElement name="page-sound" class="settings-page">
+                    <ui:Slider name="music-volume" label="배경 음악" low-value="0" high-value="1" class="settings-row" />
+                    <ui:Slider name="effects-volume" label="효과음" low-value="0" high-value="1" class="settings-row" />
+                </ui:VisualElement>
+                <ui:VisualElement name="page-body" class="settings-page">
+                    <ui:DropdownField name="camera-device" label="웹캠" class="settings-row" />
+                    <ui:Toggle name="lite-model" label="가벼운 인식 모델 (저사양 PC)" class="settings-row" />
+                    <ui:Slider name="lane-sensitivity" label="좌우 민감도" low-value="0.6" high-value="1.4" class="settings-row" />
+                    <ui:VisualElement name="camera-preview-row" class="settings-preview-row">
+                        <ui:VisualElement name="camera-preview" class="settings-preview" />
+                        <ui:VisualElement class="settings-preview-side">
+                            <ui:Label name="pose-status" text="카메라 꺼짐" class="settings-status" />
+                            <ui:Button name="recalibrate-button" text="자세 다시 맞추기" class="settings-button" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement name="page-display" class="settings-page">
+                    <ui:Toggle name="performance-overlay" label="성능 측정 표시 (F3)" class="settings-row" />
+                    <ui:Toggle name="pose-diagnostics" label="몸동작 진단 정보" class="settings-row" />
+                </ui:VisualElement>
+            </ui:ScrollView>
+            <ui:VisualElement name="settings-footer" class="settings-footer">
+                <ui:Button name="reset-button" text="기본값" class="settings-button" />
+                <ui:Button name="apply-button" text="확인" class="settings-button settings-button--primary" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

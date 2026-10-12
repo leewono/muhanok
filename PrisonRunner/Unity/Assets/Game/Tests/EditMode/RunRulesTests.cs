@@ -158,36 +158,5 @@ namespace Muhanok.Tests
             var run = Running(); run.Runner.Command(MotionCommand.Left); run.Tick(.8f); run.Hit(true); run.Reset();
             Assert.AreEqual(0, run.Score.Score); Assert.AreEqual(0, run.Chase.Pressure); Assert.AreEqual(0, run.Runner.Lane); Assert.AreEqual(2, run.Runner.Z);
         }
-        private static string Packet(string command, float confidence = .95f, int timestamp = 0)
-            => "{\"type\":\"motion\",\"command\":\"" + command + "\",\"confidence\":" + confidence.ToString(System.Globalization.CultureInfo.InvariantCulture) + ",\"timestamp\":" + timestamp + "}";
-        [Test] public void PoseRejectsMalformedAndWeakCommands()
-        {
-            using (var receiver = new PoseInputReceiver(new PoseGameInput(), .65f, 2, .35f))
-            {
-                Assert.IsFalse(receiver.AcceptJson("broken", 0)); Assert.IsFalse(receiver.AcceptJson(Packet("UNKNOWN"), 0));
-                Assert.IsFalse(receiver.AcceptJson(Packet("LEFT", .1f), 0)); Assert.AreEqual("Calibrating", receiver.Status(0));
-                Assert.IsFalse(receiver.AcceptJson(Packet("LEFT", 1.5f), 0));
-            }
-        }
-        [Test] public void PoseDebouncesEdgesAndRearmsAfterCenter()
-        {
-            var input = new PoseGameInput(); using (var receiver = new PoseInputReceiver(input, .65f, 2, .35f))
-            {
-                Assert.IsTrue(receiver.AcceptJson(Packet("LEFT"), 0)); Assert.IsFalse(receiver.AcceptJson(Packet("LEFT"), .6));
-                receiver.AcceptJson(Packet("CENTER"), 1); Assert.IsTrue(receiver.AcceptJson(Packet("LEFT"), 1.5));
-                receiver.AcceptJson(Packet("CENTER", 0), 1.6); Assert.AreEqual("Lost", receiver.Status(1.6));
-                receiver.Dispatch(4); Assert.AreEqual("Lost", receiver.Status(4)); Assert.IsFalse(input.TryRead(out _));
-                Assert.IsTrue(receiver.AcceptJson(Packet("RIGHT", .9f, 1), 5)); Assert.AreEqual("Connected", receiver.Status(5));
-            }
-        }
-        [Test] public void PoseRejectsReorderedTimestampsAndRecoversAfterRestart()
-        {
-            using (var receiver = new PoseInputReceiver(new PoseGameInput(), .65f, 2, .35f))
-            {
-                Assert.IsTrue(receiver.AcceptJson(Packet("LEFT", .9f, 100), 0));
-                Assert.IsFalse(receiver.AcceptJson(Packet("RIGHT", .9f, 99), .5));
-                Assert.IsTrue(receiver.AcceptJson(Packet("RIGHT", .9f, 1), 3));
-            }
-        }
     }
 }

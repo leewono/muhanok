@@ -34,15 +34,16 @@
 - 이번 사용자 명세는 기존 MVP 계획보다 우선한다. 최신 계획/상태는 docs/IMPLEMENTATION_PLAN.md, docs/PROGRESS.md.
 - GameScene에서 title → 8초 Timeline → Cinemachine 1인칭 → Running → Caught → Result → Retry. Scene reload 금지.
 - 본편 1인칭, 3 lane X -2.2 / 0 / +2.2, 24m chunk, pooling.
-- Python MediaPipe Tasks에서 추상 motion command를 localhost UDP JSON으로 전달한다. 기존 WebSocket 설명은 legacy 계획이다.
-- Domain은 UnityEngine 없이 유지. 기존 Core LaneRules는 재사용하고 기존 시연 씬도 보존한다.
+- 몸동작은 Unity Inference Engine에서 BlazePose(검출기+랜드마크)로 추정하고 Domain의 MotionClassifier가 전신/상체 명령으로 바꾼다. Python PoseServer와 UDP 입력은 2026-10-10에 제거했다. 상세는 docs/BODY_TRACKING.md.
+- 게임 설정창은 UI Toolkit(Resources/MuhanokUI/SettingsWindow.uxml/.uss)이고 UI/UX 팀이 그래픽을 입힌다. 코드가 찾는 요소 name은 docs/SETTINGS_UI.md에 있으며 바꾸지 않는다. F1 설정, F3 성능 측정 표시.
+- Domain은 UnityEngine 없이 유지. 기존 Core LaneRules는 재사용한다. 프로젝트에는 GameScene만 둔다. RunnerMVP·CellBlockVerticalSlice 시연 씬과 전용 스크립트·아트는 2026-10-10에 삭제했다.
 - 캐릭터는 자체 Blender Humanoid 모델이다. 달리기/점프/숙이기/비틀거림은 실제 Mixamo 동작, 채굴/아이디어 등은 자체 Blender 동작이다. 참고 이미지 수준의 최종 아트는 남아 있다. 미임포트 상용 상품을 사용했다고 추정하지 않는다. 후보와 교체 지점: docs/ASSET_CATALOG.md.
 - 기존 패키지 버전 업그레이드 금지. 필수 Timeline과 audio/animation/director/particlesystem 활성화 사유는 계획 문서에 기록되어 있다.
 
 ## 프로젝트
 - Unity 기반 3레인 Endless Runner 캡스톤 프로젝트다.
 - 배경은 Stylized 3D 감옥이다.
-- 웹캠 + Python + MediaPipe Pose로 몸동작을 인식한다.
+- 웹캠 + Unity Inference Engine(BlazePose)으로 몸동작을 인식한다. 플레이 방식은 전신/상체/키보드다.
 - 인식 결과를 Unity 캐릭터 조작으로 연결한다.
 - 구현은 프로젝트 개발 규칙을 따른다.
 - 기능 완성을 그래픽 완성보다 우선한다.
@@ -82,16 +83,15 @@
 ## 입력
 - 게임 로직은 Keyboard나 MediaPipe를 직접 참조하지 않는다.
 - 모든 입력은 공통 입력 인터페이스를 통해 전달한다.
-- KeyboardInputProvider를 항상 유지한다.
+- KeyboardGameInput을 항상 유지한다.
 - PoseInputProvider는 별도로 구현한다.
 - Pose 입력이 실패해도 키보드 플레이가 가능해야 한다.
 
-## MediaPipe
-- Python이 Webcam 및 Pose 분석을 담당한다.
-- Unity는 최종 Action만 전달받는다.
-- 허용 Action은 IDLE LEFT RIGHT JUMP CROUCH HIGH_KNEE다.
-- confidence와 timestamp를 함께 전달한다.
-- Pose 인식 실패 시 IDLE로 처리한다.
+## 몸동작 인식
+- PoseInference 어셈블리가 웹캠과 BlazePose 추론을 담당하고, Inference Engine 패키지가 없으면 컴파일에서 빠진다.
+- MotionClassifier(Domain)가 관절 좌표를 레인 구역·점프·숙이기·하이니로 바꾸며 게임 로직은 MotionCommand만 받는다.
+- 허용 명령은 CENTER LEFT RIGHT JUMP CROUCH HIGH_KNEE다.
+- 사람이 안 보이면 명령을 보내지 않고, 오래 사라지면 다시 보정한다.
 
 ## Unity
 - MonoBehaviour 하나에 여러 책임을 몰아넣지 않는다.

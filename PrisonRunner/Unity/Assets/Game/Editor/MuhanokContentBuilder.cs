@@ -94,7 +94,7 @@ namespace Muhanok.Editor
             Directory.CreateDirectory("Assets/Game/Scenes");
             const string scenePath = "Assets/Game/Scenes/GameScene.unity";
             EditorSceneManager.SaveScene(scene, scenePath);
-            EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(scenePath, true), new EditorBuildSettingsScene("Assets/Game/Scenes/RunnerMVP.unity", false), new EditorBuildSettingsScene("Assets/Game/Scenes/CellBlockVerticalSlice.unity", false) };
+            EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(scenePath, true) };
             AssetDatabase.SaveAssets(); AssetDatabase.Refresh(); Debug.Log("MUHANOK_CONTENT_PASS: 13 chunks, character/prop/obstacle/VFX IDs, GameScene.");
         }
         private static CinemachineCamera Vcam(string id, Transform parent, Vector3 pos, Vector3 target, float fov)
@@ -284,15 +284,6 @@ namespace Muhanok.Editor
         private static GameObject Hazard(string id, ObstacleKind kind)
         {
             var root = new GameObject(id); root.AddComponent<ObstacleController>().Kind = kind;
-            // Existing authored visual prefabs remain useful; collision/pass rules belong to this root.
-            string existingPath = kind == ObstacleKind.Crate ? "MetalCrateVisual" : kind == ObstacleKind.Pipe ? "LowPipeVisual" : kind == ObstacleKind.Barrier ? "BarricadeVisual" : null;
-            var existing = existingPath != null ? AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Art/Obstacles/CellBlock/" + existingPath + ".prefab") : null;
-            if (existing != null)
-            {
-                var visual = (GameObject)PrefabUtility.InstantiatePrefab(existing); visual.transform.SetParent(root.transform, false); visual.name = "EnvironmentRoot";
-                foreach (var collider in visual.GetComponentsInChildren<Collider>()) UnityEngine.Object.DestroyImmediate(collider);
-                return root;
-            }
             if (kind == ObstacleKind.Crate) Cube("Crate", root.transform, new Vector3(0, .4f, 0), new Vector3(1.6f, .8f, 1.2f), wood);
             else if (kind == ObstacleKind.Pipe) Cube("Pipe", root.transform, new Vector3(0, 1.5f, 0), new Vector3(1.9f, .35f, .6f), yellow);
             else if (kind == ObstacleKind.Stair)

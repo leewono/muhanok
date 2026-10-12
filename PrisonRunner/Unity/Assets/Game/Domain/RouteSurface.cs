@@ -6,11 +6,32 @@ namespace Muhanok.Domain
     public static class RouteSurface
     {
         public const float Length=24f;
-        private static readonly int[] route={0,1,2,3,7,4,5,6,11,12};
+        private static readonly int[] route=RoutePlan.AuthoredLap;
+        // The active run's plan. Without one, the authored lap repeats (editor tools and tests).
+        private static RoutePlan plan;
+        public static void UsePlan(RoutePlan runPlan)=>plan=runPlan;
         public static int SequenceLength=>route.Length;
-        public static int TypeAt(int sequence)=>route[Math.Max(0,sequence)%route.Length];
-        public static bool IsCart(float z){int type=TypeAt((int)Math.Floor(Math.Max(0,z)/Length));return type==1||type==2;}
-        public static float CartProgress(float z)=>IsCart(z)?Math.Max(0,Math.Min(1,(z%(Length*route.Length)-Length)/(Length*2))):0;
+        public static int TypeAt(int sequence)=>plan!=null?plan.TypeAt(sequence):route[Math.Max(0,sequence)%route.Length];
+        public static int CycleAt(int sequence)=>plan!=null?plan.CycleAt(sequence):Math.Max(0,sequence)/route.Length;
+        public static int SequenceAt(float z)=>(int)Math.Floor(Math.Max(0,z)/Length);
+        private static bool CartType(int type)=>type==1||type==2;
+        public static bool IsCart(float z)=>CartType(TypeAt(SequenceAt(z)));
+        public static float CartProgress(float z)
+        {
+            int sequence=SequenceAt(z);
+            if(!CartType(TypeAt(sequence)))return 0;
+            int start=sequence,end=sequence;
+            while(start>0&&CartType(TypeAt(start-1)))start--;
+            while(end-start<64&&CartType(TypeAt(end+1)))end++;
+            return Math.Max(0,Math.Min(1,(z-start*Length)/((end-start+1)*Length)));
+        }
+        // Metres until the current sprint (walking) or rest (cart) section changes.
+        public static float SegmentRemaining(float z)
+        {
+            int sequence=SequenceAt(z),end=sequence; bool cart=CartType(TypeAt(sequence));
+            while(end-sequence<64&&CartType(TypeAt(end+1))==cart)end++;
+            return Math.Max(0,(end+1)*Length-z);
+        }
         // Negative is a missing left rail, positive is a missing right rail.
         public static int CartMissingSide(int type,float localZ)
         {

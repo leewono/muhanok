@@ -16,6 +16,10 @@ namespace Muhanok.Presentation.Map
         public FloorItemController[] FloorItems;
         public CartRailGap[] RailGaps;
         public ClosingSlideGate[] SlideGates;
+        // Runtime additions placed by the decorator; not part of the authored prefab.
+        public readonly System.Collections.Generic.List<ObstacleController> DynamicObstacles = new System.Collections.Generic.List<ObstacleController>();
+        public readonly System.Collections.Generic.List<ItemPickup> Pickups = new System.Collections.Generic.List<ItemPickup>();
+        public readonly System.Collections.Generic.List<IRunnerAnimated> Animated = new System.Collections.Generic.List<IRunnerAnimated>();
         public void Prepare(int sequence, float chance, System.Random random)
         {
             if(Gates!=null) foreach(var gate in Gates) gate.ResetGate();
@@ -76,6 +80,7 @@ namespace Muhanok.Presentation.Map
         {
             if(Gates!=null) foreach(var gate in Gates) if(gate.gameObject.activeInHierarchy) gate.Preview(runnerZ);
             if(SlideGates!=null)foreach(var gate in SlideGates)if(gate.gameObject.activeInHierarchy)gate.Preview(runnerZ);
+            foreach(var item in Animated)item.Preview(runnerZ);
         }
     }
 }

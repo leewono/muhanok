@@ -16,4 +16,4 @@ Mixamo 원본 캐릭터·애니메이션 파일은 일반 공개 재배포 대�
 
 Blender 캐릭터·환경·자체 동작의 제작 원본은 `References/Blender/`, 실제 사용 FBX는 `Unity/Assets/External/Staging/Blender/`에 있습니다. 생성 재질 출처는 `References/GeneratedV6/Provenance.md`에 있습니다. 로딩 이미지와 참고 이미지는 해당 프로젝트에서 제공받은 자료입니다.
 
-Python 몸동작 입력의 의존성은 `PoseServer/requirements.txt`에 있습니다. MediaPipe 모델은 Google 공개 모델 저장소에서 최초 설치 시 내려받으며 이 배포 ZIP에는 포함하지 않습니다. Unity 및 Python 의존성의 라이선스는 각 공급자의 조건을 따릅니다. 현재 저장소에 프로젝트 전체를 포괄하는 오픈소스 라이선스를 새로 지정하지 않았습니다.
+몸동작 인식은 Unity Inference Engine(com.unity.ai.inference)으로 게임 안에서 실행합니다. 모델은 Google MediaPipe BlazePose를 Unity가 Inference Engine용 ONNX로 변환해 공개한 [unity/inference-engine-blaze-pose](https://huggingface.co/unity/inference-engine-blaze-pose)(Apache-2.0)의 `pose_detection.onnx`, `pose_landmarks_detector_full.onnx`, `pose_landmarks_detector_lite.onnx`, `anchors.csv`이며 `Unity/Assets/Game/Content/Pose/Resources/MuhanokPose/`에 있습니다. 배경 음악과 효과음은 실행 중 코드로 합성하며 외부 음원 파일을 쓰지 않습니다. Unity 패키지의 라이선스는 각 공급자의 조건을 따릅니다. 현재 저장소에 프로젝트 전체를 포괄하는 오픈소스 라이선스를 새로 지정하지 않았습니다.

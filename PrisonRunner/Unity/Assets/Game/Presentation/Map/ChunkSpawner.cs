@@ -7,23 +7,37 @@ namespace Muhanok.Presentation.Map
     public sealed class ChunkPool
     {
         private readonly Queue<MuhanokMapChunk>[] pools;
+        private readonly MuhanokMapChunk[] prefabs;
+        private readonly Transform parent;
+        private readonly RenderBudget budget;
+        public readonly Dictionary<MuhanokMapChunk, ChunkRenderBudget> Budgets = new Dictionary<MuhanokMapChunk, ChunkRenderBudget>();
         public int CreatedCount { get; private set; }
-        public ChunkPool(MuhanokMapChunk[] prefabs, Transform parent)
+        public ChunkPool(MuhanokMapChunk[] chunkPrefabs, Transform root, RenderBudget renderBudget = null)
         {
+            prefabs = chunkPrefabs; parent = root; budget = renderBudget;
             pools = new Queue<MuhanokMapChunk>[prefabs.Length];
             for (int i = 0; i < pools.Length; i++)
             {
-                pools[i] = new Queue<MuhanokMapChunk>(2);
-                for (int j = 0; j < 2; j++)
-                {
-                    var chunk = Object.Instantiate(prefabs[i], parent);
-                    chunk.gameObject.SetActive(false); pools[i].Enqueue(chunk); CreatedCount++;
-                }
+                pools[i] = new Queue<MuhanokMapChunk>(3);
+                // Interval laps repeat carts, corridors and the zoo wall; keep three of those warm.
+                int warm = i == 1 || i == 2 || i == 4 || i == 5 || i == 12 ? 3 : 2;
+                for (int j = 0; j < warm; j++) pools[i].Enqueue(Create(i));
             }
+        }
+        private MuhanokMapChunk Create(int index)
+        {
+            var chunk = Object.Instantiate(prefabs[index], parent);
+            chunk.gameObject.SetActive(false); CreatedCount++;
+            if (budget != null) Budgets[chunk] = new ChunkRenderBudget(chunk, budget);
+            return chunk;
         }
         public MuhanokMapChunk Rent(int index)
         {
-            if (pools[index].Count == 0) throw new System.InvalidOperationException("Chunk prewarm bound exceeded: " + index);
+            if (pools[index].Count == 0)
+            {
+                Debug.LogWarning("Chunk pool grew for type " + index + "; consider a larger prewarm.");
+                return Create(index);
+            }
             return pools[index].Dequeue();
         }
         public void Return(int index, MuhanokMapChunk chunk) { chunk.gameObject.SetActive(false); pools[index].Enqueue(chunk); }
@@ -35,38 +49,64 @@ namespace Muhanok.Presentation.Map
             public readonly int Type; public readonly MuhanokMapChunk Chunk;
             public ActiveChunk(int type, MuhanokMapChunk chunk) { Type = type; Chunk = chunk; }
         }
+        // Optional runtime decoration (items, zoo animals) applied after the authored layout.
+        public interface IChunkDecorator
+        {
+            void Decorate(MuhanokMapChunk chunk, int sequence, int type, System.Random random);
+            void Release(MuhanokMapChunk chunk);
+        }
         private readonly List<ActiveChunk> active = new List<ActiveChunk>(8);
         private readonly ChunkPool pool;
         private readonly int types;
         private readonly RunSession session;
         private System.Random random;
-        private int sequence;
+        private int sequence, seed = 723;
+        private readonly RenderBudget budget;
+        private float runnerZ;
+        // Graphics quality scales the detail/light distances (1 = full).
+        public float DetailScale { get; set; } = 1f;
         private Vector3 nextPosition;
+        public IChunkDecorator Decorator { get; set; }
         public IReadOnlyList<ActiveChunk> Active => active;
         public int Spawned => sequence;
         public int CreatedCount => pool.CreatedCount;
-        public ChunkSpawner(MuhanokMapChunk[] prefabs, Transform root, RunSession run)
+        public ChunkSpawner(MuhanokMapChunk[] prefabs, Transform root, RunSession run, RenderBudget renderBudget = null)
         {
-            types = prefabs.Length; session = run; pool = new ChunkPool(prefabs, root); Reset();
+            types = prefabs.Length; session = run; budget = renderBudget; pool = new ChunkPool(prefabs, root, renderBudget); Reset();
+        }
+        // A new seed gives a different obstacle layout; the authored seed stays the default.
+        public void Reset(int layoutSeed)
+        {
+            seed = layoutSeed; Reset();
         }
         public void Reset()
         {
-            for (int i = 0; i < active.Count; i++) pool.Return(active[i].Type, active[i].Chunk);
-            active.Clear(); random = new System.Random(723); nextPosition = Vector3.zero; sequence = 0; Tick(2f);
+            for (int i = 0; i < active.Count; i++) Recycle(active[i]);
+            active.Clear(); random = new System.Random(seed); nextPosition = Vector3.zero; sequence = 0; Tick(2f);
+        }
+        private void Recycle(ActiveChunk item)
+        {
+            Decorator?.Release(item.Chunk);
+            pool.Return(item.Type, item.Chunk);
         }
         public void Tick(float z)
         {
             for (int i = active.Count - 1; i >= 0; i--)
-                if (active[i].Chunk.Exit.position.z < z - 30f) { pool.Return(active[i].Type, active[i].Chunk); active.RemoveAt(i); }
-            while (nextPosition.z < z + 96f)
+                if (active[i].Chunk.Exit.position.z < z - 30f) { Recycle(active[i]); active.RemoveAt(i); }
+            runnerZ = z;
+            while (nextPosition.z < z + (budget != null ? budget.LookAhead : 96f))
             {
                 int type = RouteSurface.TypeAt(sequence);
                 var chunk = pool.Rent(type);
                 chunk.transform.position += nextPosition - chunk.Entry.position;
                 chunk.Prepare(sequence, session.Difficulty.ObstacleChance(session.Score.Distance), random);
                 chunk.gameObject.SetActive(true); active.Add(new ActiveChunk(type, chunk));
+                Decorator?.Decorate(chunk, sequence, type, random);
                 nextPosition = chunk.Exit.position; sequence++;
             }
+            if (budget != null)
+                foreach (var item in active)
+                    if (pool.Budgets.TryGetValue(item.Chunk, out var limits)) limits.Apply(item.Chunk.Entry.position.z, runnerZ, budget, DetailScale);
         }
         public void Evaluate(float previousZ)
         {
@@ -76,6 +116,8 @@ namespace Muhanok.Presentation.Map
                 for (int j = 0; j < obstacles.Length && session.Flow.State == GameFlowState.Running; j++) obstacles[j].Evaluate(session, previousZ);
                 var exercises=active[i].Chunk.ExerciseObstacles;
                 if(exercises!=null)foreach(var exercise in exercises)exercise.Evaluate(session,previousZ);
+                foreach(var hazard in active[i].Chunk.DynamicObstacles)hazard.Evaluate(session,previousZ);
+                foreach(var pickup in active[i].Chunk.Pickups)pickup.Evaluate(session,previousZ);
                 var coins=active[i].Chunk.Coins;
                 if(coins!=null) for(int j=0;j<coins.Length;j++) coins[j].Evaluate(session,previousZ);
                 var items=active[i].Chunk.FloorItems;
