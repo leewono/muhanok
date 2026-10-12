@@ -44,7 +44,7 @@ namespace Muhanok.Presentation
             GUI.color = new Color(1, .55f, .35f); GUI.Label(new Rect(640, 548, 440, 28), validation, skin.Small); GUI.color = Color.white;
             if (data != null && PlayStyleInfo.UsesCamera(style)) PosePreview.Draw(skin, new Rect(640, 150, 450, 340), data, true);
             else KeyboardGuide(new Rect(640, 150, 450, 340));
-            if (skin.FlatButton(new Rect(640, 584, 450, 56), "시작하기", true))
+            if (skin.PrimaryButton(new Rect(640, 584, 450, 56), "시작하기"))
             {
                 if (!probe.SetWeight(weightText)) { validation = "몸무게는 10~350kg 숫자로 입력해 주세요."; return; }
                 beginRun?.Invoke(new VisitorProfile { Name = name.Trim(), Weight = weightText.Trim(), Style = style });

@@ -50,6 +50,20 @@ namespace Muhanok.Presentation
             }
             var old = GUI.color; GUI.color = color; GUI.Box(r, GUIContent.none, panelStyle); GUI.color = old;
         }
+        // Main call to action: saturated orange, white bold text with a shadow, brighter on hover and pulsing gently.
+        public bool PrimaryButton(Rect rect, string text, int size = 28)
+        {
+            bool hover = rect.Contains(Event.current.mousePosition);
+            float pulse = .5f + .5f * Mathf.Sin(Time.unscaledTime * 3f);
+            Card(new Rect(rect.x - 3, rect.y - 3, rect.width + 6, rect.height + 6), new Color(1f, .85f, .45f, .55f + .35f * pulse));
+            Card(rect, hover ? new Color(1f, .6f, .1f) : new Color(1f, .48f, .02f));
+            Card(new Rect(rect.x + 4, rect.y + 3, rect.width - 8, rect.height * .42f), new Color(1f, 1f, 1f, .18f));
+            var label = Centered(size, FontStyle.Bold);
+            GUI.color = new Color(.35f, .12f, 0f, .8f); GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), text, label);
+            GUI.color = Color.white; GUI.Label(rect, text, label);
+            bool pressed = GUI.Button(rect, GUIContent.none, GUIStyle.none);
+            GUI.color = Color.white; return pressed;
+        }
         public bool FlatButton(Rect rect, string text, bool primary)
         {
             if (flatButton == null)
