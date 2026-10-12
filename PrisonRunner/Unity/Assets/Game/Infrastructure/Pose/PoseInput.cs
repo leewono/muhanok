@@ -26,6 +26,8 @@ namespace Muhanok.Infrastructure
         PoseStatus Status { get; }
         string Message { get; }
         Texture CameraTexture { get; }
+        // One line for the preview: tracking mode, scores and inference rate.
+        string Diagnostics { get; }
         void Start();
         void Stop();
         void Tick(double now);
@@ -74,6 +76,8 @@ namespace Muhanok.Infrastructure
     {
         private readonly PoseCameraOptions options;
         private readonly MotionClassifier classifier;
+        private readonly MotionTuning tuning;
+        private readonly LandmarkSmoother smoother = new LandmarkSmoother();
         private readonly PoseCommandSource commands;
         private readonly PoseFrame incoming = new PoseFrame();
         private IPoseEstimator estimator;
@@ -86,6 +90,7 @@ namespace Muhanok.Infrastructure
         public double LastJumpTime { get; private set; } = -10;
         public Texture CameraTexture => estimator?.CameraTexture;
         public string Message => estimator?.Message ?? "";
+        public string Diagnostics => estimator?.Diagnostics ?? "";
         public bool UsesCamera => PlayStyleInfo.UsesCamera(Style);
         public bool Tracking => Status == PoseStatus.Tracking;
         public PoseStatus Status
@@ -100,7 +105,7 @@ namespace Muhanok.Infrastructure
         }
         public PoseTracker(PoseGameInput output, PoseCameraOptions camera, MotionTuning tuning, Func<int> lane, Func<bool> riding)
         {
-            options = camera ?? new PoseCameraOptions(); classifier = new MotionClassifier(tuning);
+            options = camera ?? new PoseCameraOptions(); this.tuning = tuning ?? new MotionTuning(); classifier = new MotionClassifier(this.tuning);
             commands = new PoseCommandSource(output, lane, riding);
         }
         public void SetStyle(PlayStyle style)
@@ -116,13 +121,14 @@ namespace Muhanok.Infrastructure
             }
             estimator?.Start();
         }
-        public void Recalibrate() { classifier.Recalibrate(); commands.Reset(0); }
+        public void Recalibrate() { classifier.Recalibrate(); smoother.Reset(); commands.Reset(0); }
         public void ResetCommands() => commands.Reset(classifier.Reading.Lane);
         public void Tick(double now, bool feedCommands)
         {
             if (!UsesCamera || estimator == null) return;
             estimator.Tick(now);
             if (!estimator.TryTakeFrame(incoming)) return;
+            smoother.Apply(incoming, tuning);
             LastFrame.CopyFrom(incoming);
             var reading = classifier.Update(incoming);
             if (reading.JumpEdge) LastJumpTime = now;

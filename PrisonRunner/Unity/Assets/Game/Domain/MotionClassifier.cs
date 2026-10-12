@@ -19,7 +19,9 @@ namespace Muhanok.Domain
         private int ankleSamples, noseSamples, kneeSamples;
         // Tracking state.
         private double lostSince = -1, crouchPendingSince = -1, landingUntil, kneeUntil, lastStep, lastJump = -10, lastLaneChange = -10, pumpUntil;
-        private bool airborne, handsUp;
+        private bool airborne, handsUp, duckOnLoss;
+        // How far the last tracked frame was toward a duck (1 = threshold); a loss after a dip counts as ducking.
+        private float dropRatio;
         private int stepSign, pumpSign;
         private readonly double[] stepTimes = new double[8];
         private int stepIndex;
@@ -32,7 +34,7 @@ namespace Muhanok.Domain
         public void SetStyle(PlayStyle next) { style = next; Recalibrate(); }
         public void Recalibrate()
         {
-            calibrated = false; samples = 0; smoothed = false; Reading.Clear(); airborne = handsUp = false;
+            calibrated = false; samples = 0; smoothed = false; Reading.Clear(); airborne = handsUp = duckOnLoss = false; dropRatio = 0;
             crouchPendingSince = -1; kneeUntil = pumpUntil = 0; stepSign = pumpSign = 0; StepsPerMinute = 0;
             Status = PoseStatus.Calibrating;
         }
@@ -43,7 +45,10 @@ namespace Muhanok.Domain
             double now = frame.Time;
             if (!frame.HasPose || !Smooth(frame) || !RequiredVisible())
             {
-                if (lostSince < 0) lostSince = now;
+                if (lostSince < 0) { lostSince = now; duckOnLoss = calibrated && Status == PoseStatus.Tracking && dropRatio > .5f; }
+                double lost = now - lostSince;
+                if (calibrated && lost <= tuning.LostGraceSeconds && !duckOnLoss) return Reading;
+                if (calibrated && duckOnLoss && lost <= tuning.DuckHoldSeconds) { Reading.Crouch = true; Reading.Active = true; Status = PoseStatus.Tracking; return Reading; }
                 if (now - lostSince > tuning.LostSeconds && calibrated) Recalibrate();
                 Status = PoseStatus.Searching; Reading.Crouch = Reading.HighKnee = Reading.Active = false; crouchPendingSince = -1;
                 return Reading;
@@ -64,11 +69,14 @@ namespace Muhanok.Domain
             {
                 var p = frame.Points[i];
                 if (float.IsNaN(p.X) || float.IsNaN(p.Y) || float.IsInfinity(p.X) || float.IsInfinity(p.Y)) return false;
-                px[i] += (p.X * frame.Aspect - px[i]) * a; py[i] += (p.Y - py[i]) * a; vis[i] = p.Visibility;
+                // Faint joints keep their last position instead of jumping to a guess.
+                if (!smoothed || p.Visibility >= MinVisibility * .6f) { px[i] += (p.X * frame.Aspect - px[i]) * a; py[i] += (p.Y - py[i]) * a; }
+                vis[i] = p.Visibility;
             }
             smoothed = true; return true;
         }
-        private bool Seen(int i) => vis[i] >= tuning.MinVisibility;
+        private float MinVisibility => style == PlayStyle.UpperBody ? tuning.UpperMinVisibility : tuning.MinVisibility;
+        private bool Seen(int i) => vis[i] >= MinVisibility;
         private bool RequiredVisible() => style == PlayStyle.UpperBody
             ? Seen(PoseJoint.LeftShoulder) && Seen(PoseJoint.RightShoulder)
             : Seen(PoseJoint.LeftShoulder) && Seen(PoseJoint.RightShoulder) && Seen(PoseJoint.LeftHip) && Seen(PoseJoint.RightHip);
@@ -130,6 +138,7 @@ namespace Muhanok.Domain
             float offset = (CentreX - bCx) / scale;
             UpdateLane(offset, tuning.LaneEnter, tuning.LaneExit, now);
             float drop = (ShoulderY - bSy) / scale, hipRise = (bHy - HipY) / scale, shoulderRise = (bSy - ShoulderY) / scale;
+            dropRatio = drop / tuning.CrouchDrop;
             bool feetUp = !AnklesSeen || float.IsNaN(bAnkle) || (bAnkle - AnkleY) / scale > tuning.JumpRise * .5f;
             bool up = hipRise > tuning.JumpRise && shoulderRise > tuning.JumpRise * .8f && feetUp;
             if (up && !airborne && now - lastJump > .25)
@@ -162,7 +171,9 @@ namespace Muhanok.Domain
             float offset = (CentreX - bCx) / scale;
             UpdateLane(offset, tuning.UpperLaneEnter, tuning.UpperLaneExit, now);
             float drop = (ShoulderY - bSy) / scale;
-            bool noseDuck = Seen(PoseJoint.Nose) && !float.IsNaN(bNose) && (py[PoseJoint.Nose] - bNose) / scale > tuning.UpperCrouchDrop * 1.3f;
+            float noseDrop = Seen(PoseJoint.Nose) && !float.IsNaN(bNose) ? (py[PoseJoint.Nose] - bNose) / scale : 0f;
+            bool noseDuck = noseDrop > tuning.UpperCrouchDrop * 1.3f;
+            dropRatio = Math.Max(drop / tuning.UpperCrouchDrop, noseDrop / (tuning.UpperCrouchDrop * 1.3f));
             bool wristsSeen = Seen(PoseJoint.LeftWrist) && Seen(PoseJoint.RightWrist);
             float head = Seen(PoseJoint.Nose) ? py[PoseJoint.Nose] : ShoulderY - scale;
             bool hands = wristsSeen && py[PoseJoint.LeftWrist] < head - tuning.UpperHandsAboveNose * scale && py[PoseJoint.RightWrist] < head - tuning.UpperHandsAboveNose * scale;

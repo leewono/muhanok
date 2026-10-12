@@ -72,12 +72,41 @@ namespace Muhanok.Tests
             CollectionAssert.AreEqual(new[] { "crouch", "stand" }, Play(PlayStyle.UpperBody, t => new Body { Shoulder = In(t, .2, 1) ? .07f : 0 }, 1.4));
             CollectionAssert.AreEqual(new[] { "knee" }, Play(PlayStyle.UpperBody, t => { int s = (int)(t / .3) % 2; bool on = In(t, .2, 1.8); return new Body { WristL = on ? (s == 0 ? .4f : .62f) : .6f, WristR = on ? (s == 1 ? .4f : .62f) : .6f }; }, 2.0));
         }
+        [Test] public void ShortDropoutKeepsTrackingAndVanishingWhileDuckingCountsAsDuck()
+        {
+            var classifier = new MotionClassifier(new MotionTuning()); classifier.SetStyle(PlayStyle.UpperBody);
+            for (int i = 0; i < 30; i++) classifier.Update(Frame(new Body { Legs = false }, i / 30.0));
+            classifier.Update(new PoseFrame { HasPose = false, Time = 1.1 });
+            Assert.AreEqual(PoseStatus.Tracking, classifier.Status, "A brief dropout must not cancel tracking");
+            classifier.Update(Frame(new Body { Legs = false }, 1.2));
+            // Start ducking, then the body leaves the camera view mid-duck.
+            for (int i = 0; i < 4; i++) classifier.Update(Frame(new Body { Legs = false, Shoulder = .04f }, 1.3 + i / 30.0));
+            var reading = classifier.Update(new PoseFrame { HasPose = false, Time = 1.5 });
+            Assert.IsTrue(reading.Crouch); Assert.AreEqual(PoseStatus.Tracking, classifier.Status);
+            reading = classifier.Update(new PoseFrame { HasPose = false, Time = 3.5 });
+            Assert.IsFalse(reading.Crouch); Assert.AreEqual(PoseStatus.Searching, classifier.Status);
+        }
+        [Test] public void SmootherSuppressesJitterButFollowsRealMoves()
+        {
+            var smoother = new LandmarkSmoother(); var tuning = new MotionTuning();
+            var random = new Random(3); double raw = 0, smooth = 0; float last = 0;
+            for (int i = 0; i < 90; i++)
+            {
+                float dx = (float)(random.NextDouble() - .5) * .01f;
+                var frame = Frame(new Body { Dx = dx }, i / 30.0); smoother.Apply(frame, tuning);
+                if (i > 15) { raw += dx * dx; smooth += Math.Pow(frame.Points[11].X - .44f, 2); }
+            }
+            Assert.Less(smooth, raw * .5, "Standing jitter should at least halve");
+            for (int i = 0; i < 15; i++) { var frame = Frame(new Body { Dx = -.1f }, 3 + i / 30.0); smoother.Apply(frame, tuning); last = frame.Points[11].X; }
+            Assert.Less(Math.Abs(last - .34f), .01f, "A real step must arrive within half a second");
+        }
         [Test] public void LostPoseRecalibratesAfterTimeout()
         {
             var classifier = new MotionClassifier(new MotionTuning()); classifier.SetStyle(PlayStyle.FullBody);
             for (int i = 0; i < 30; i++) classifier.Update(Frame(new Body(), i / 30.0));
             Assert.AreEqual(PoseStatus.Tracking, classifier.Status);
-            classifier.Update(new PoseFrame { HasPose = false, Time = 2 }); Assert.AreEqual(PoseStatus.Searching, classifier.Status);
+            classifier.Update(new PoseFrame { HasPose = false, Time = 2 }); Assert.AreEqual(PoseStatus.Tracking, classifier.Status, "Grace period");
+            classifier.Update(new PoseFrame { HasPose = false, Time = 2.6 }); Assert.AreEqual(PoseStatus.Searching, classifier.Status);
             classifier.Update(new PoseFrame { HasPose = false, Time = 6 });
             classifier.Update(Frame(new Body(), 6.1)); Assert.AreEqual(PoseStatus.Calibrating, classifier.Status);
         }

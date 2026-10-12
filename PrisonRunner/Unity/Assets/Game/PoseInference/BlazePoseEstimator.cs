@@ -35,7 +35,12 @@ namespace Muhanok.PoseInference
         private bool flipped;
         private readonly PoseFrame result = new PoseFrame();
         private bool hasResult;
-        private double frameTime, openedAt, stageStarted;
+        private double frameTime, openedAt, stageStarted, statsSince;
+        private bool tracking, fromTracking;
+        private Vector2 roiHip, roiTop;
+        private float roiRadius, shoulderQuality, lastDetectorScore;
+        private int published, detections, lostTracks;
+        public string Diagnostics { get; private set; } = "";
         private bool gotIndex, gotScore, gotBox;
         private int detectedIndex;
         private float detectedScore;
@@ -148,7 +153,9 @@ namespace Muhanok.PoseInference
             if (Status == PoseStatus.Starting) Status = PoseStatus.Tracking;
             switch (stage)
             {
-                case Stage.Idle: if (camera.didUpdateThisFrame) Detect(now); break;
+                // MediaPipe-style: while the body is tracked, the next region comes from the last landmarks
+                // and the detector only runs again after the body is lost.
+                case Stage.Idle: if (camera.didUpdateThisFrame) { if (tracking) Track(now); else Detect(now); } break;
                 case Stage.Detecting: CollectDetection(now); break;
                 case Stage.Landmarking: CollectLandmarks(now); break;
             }
@@ -173,12 +180,14 @@ namespace Muhanok.PoseInference
             try { ReadLandmarks(); }
             catch (InvalidOperationException) { Drop(); }
         }
-        private void Drop() { stage = Stage.Idle; gotIndex = gotScore = gotBox = false; }
+        private void Drop() { stage = Stage.Idle; gotIndex = gotScore = gotBox = false; tracking = false; }
         private static bool Ready(Tensor tensor) => tensor != null && tensor.IsReadbackRequestDone();
 
+        private void BeginFrame(double now) { frameWidth = camera.width; frameHeight = camera.height; flipped = camera.videoVerticallyMirrored; frameTime = now; }
+        private void Track(double now) { BeginFrame(now); fromTracking = true; StartLandmarks(roiHip, roiTop); }
         private void Detect(double now)
         {
-            frameWidth = camera.width; frameHeight = camera.height; flipped = camera.videoVerticallyMirrored; frameTime = now;
+            BeginFrame(now); fromTracking = false;
             float size = Mathf.Max(frameWidth, frameHeight), scale = size / DetectorSize;
             // Letterbox the frame into the square detector input; tensor rows go down, texture rows go up.
             detectorToImage = Affine.Translation(.5f * (frameWidth - size), .5f * (frameHeight + size)) * Affine.Scale(scale, -scale);
@@ -195,7 +204,7 @@ namespace Muhanok.PoseInference
         private void ReadDetection()
         {
             int index = detectedIndex; float score = detectedScore; var box = detectedBox;
-            gotIndex = gotScore = gotBox = false;
+            gotIndex = gotScore = gotBox = false; lastDetectorScore = score; detections++;
             if (score < options.DetectionThreshold || index < 0 || index >= AnchorCount)
             {
                 Publish(false); stage = Stage.Idle; return;
@@ -204,8 +213,14 @@ namespace Muhanok.PoseInference
             float ax = DetectorSize * anchors[index, 0], ay = DetectorSize * anchors[index, 1];
             var hip = detectorToImage.Apply(ax + box[4], ay + box[5]);
             var top = detectorToImage.Apply(ax + box[6], ay + box[7]);
+            StartLandmarks(hip, top);
+        }
+
+        // Crop around the body: centre at the hip point, rotated toward the point above the head, 1.25x margin.
+        private void StartLandmarks(Vector2 hip, Vector2 top)
+        {
             var delta = top - hip;
-            float radius = 1.25f * delta.magnitude;
+            float radius = 1.25f * delta.magnitude; roiRadius = radius;
             float theta = Mathf.Atan2(delta.y, delta.x);
             float scale = radius / (.5f * LandmarkSize);
             landmarkToImage = Affine.Translation(hip.x, hip.y) * Affine.Scale(scale, -scale) * Affine.Rotation(.5f * Mathf.PI - theta) * Affine.Translation(-.5f * LandmarkSize, -.5f * LandmarkSize);
@@ -242,15 +257,33 @@ namespace Muhanok.PoseInference
                     // Mirror view: the player's right side appears on the right of the screen.
                     result.Points[i] = new PoseLandmark { X = 1 - u, Y = 1 - v, Visibility = Mathf.Min(visibility, presence) };
                 }
+                // Landmarks 33 and 34 are BlazePose's alignment points (hip centre, above the head) for the next crop.
+                var nextHip = landmarkToImage.Apply(values[5 * 33], values[5 * 33 + 1]);
+                var nextTop = landmarkToImage.Apply(values[5 * 34], values[5 * 34 + 1]);
+                shoulderQuality = Mathf.Max(result.Points[11].Visibility, result.Points[12].Visibility);
+                bool keep = shoulderQuality >= .5f && (nextTop - nextHip).magnitude > 8f;
+                tracking = keep;
+                if (keep) { roiHip = nextHip; roiTop = nextTop; }
             }
-            Publish(true); stage = Stage.Idle;
+            stage = Stage.Idle;
+            // A tracked crop that lost the body is not published: the detector runs on the next camera frame.
+            if (!tracking && fromTracking) { lostTracks++; return; }
+            result.ObjectScale = frameHeight > 0 ? 2f * roiRadius / frameHeight : .5f;
+            Publish(true);
         }
         private float Activate(float value) => logits ? 1f / (1f + Mathf.Exp(-value)) : Mathf.Clamp01(value);
 
         private void Publish(bool pose)
         {
             result.HasPose = pose; result.Time = frameTime; result.Aspect = frameHeight > 0 ? frameWidth / (float)frameHeight : 4f / 3f;
-            hasResult = true;
+            hasResult = true; published++;
+            if (frameTime - statsSince >= .5)
+            {
+                float rate = (float)(published / (frameTime - statsSince));
+                Diagnostics = (tracking ? "이어서 추적" : "사람 찾기") + " · 어깨 " + shoulderQuality.ToString("0.00") + " · 검출 " + lastDetectorScore.ToString("0.00")
+                    + " · " + rate.ToString("0") + "fps · 재검출 " + detections + " · 놓침 " + lostTracks;
+                published = 0; detections = 0; lostTracks = 0; statsSince = frameTime;
+            }
         }
 
         public bool TryTakeFrame(PoseFrame target)

@@ -51,7 +51,13 @@ MonoBehaviour:
     ConvertToSrgb: 0
   Motion:
     MinVisibility: 0.5
-    Smoothing: 0.55
+    UpperMinVisibility: 0.3
+    Smoothing: 0.85
+    FilterMinCutoff: 0.05
+    FilterBeta: 80
+    FilterDerivateCutoff: 1
+    LostGraceSeconds: 0.5
+    DuckHoldSeconds: 1.5
     CalibrationFrames: 20
     CalibrationStillness: 0.12
     LaneEnter: 0.3

@@ -11,6 +11,7 @@ namespace Muhanok.Presentation
         PoseFrame PoseFrame { get; }
         PoseStatus PoseStatus { get; }
         string PoseMessage { get; }
+        string PoseDiagnostics { get; }
         // What the classifier sees right now, so players can check recognition before and during a run.
         MotionReading Motion { get; }
         float SecondsSinceJump { get; }
@@ -76,6 +77,11 @@ namespace Muhanok.Presentation
             skin.Card(label, new Color(0, 0, 0, .6f));
             GUI.Label(label, text, skin.Centered(18, FontStyle.Bold));
             if (status == PoseStatus.Tracking && data.Motion != null) DrawMotion(skin, area, data);
+            // Diagnostics for tuning: tracking mode, shoulder confidence, detector score, inference rate.
+            if (!string.IsNullOrEmpty(data.PoseDiagnostics) && area.width > 300)
+            {
+                GUI.color = new Color(1, 1, 1, .8f); GUI.Label(new Rect(area.x + 10, area.yMax - 64, area.width - 20, 22), data.PoseDiagnostics, skin.Style(13, FontStyle.Normal)); GUI.color = Color.white;
+            }
             if (status == PoseStatus.Calibrating)
             {
                 GUI.color = new Color(1, 1, 1, .25f); GUI.DrawTexture(new Rect(area.x + 20, area.yMax - 44, area.width - 40, 6), Texture2D.whiteTexture);

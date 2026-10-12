@@ -12,9 +12,11 @@ namespace Muhanok.Domain
         public float Aspect = 4f / 3f;
         public bool HasPose;
         public double Time;
+        // Size of the tracked body region relative to the image height; used to scale the jitter filter.
+        public float ObjectScale = .5f;
         public void CopyFrom(PoseFrame other)
         {
-            Array.Copy(other.Points, Points, Count); Aspect = other.Aspect; HasPose = other.HasPose; Time = other.Time;
+            Array.Copy(other.Points, Points, Count); Aspect = other.Aspect; HasPose = other.HasPose; Time = other.Time; ObjectScale = other.ObjectScale;
         }
     }
 
@@ -53,7 +55,11 @@ namespace Muhanok.Domain
     [Serializable]
     public sealed class MotionTuning
     {
-        public float MinVisibility = .5f, Smoothing = .55f;
+        public float MinVisibility = .5f, UpperMinVisibility = .3f, Smoothing = .85f;
+        // One Euro filter (MediaPipe pose defaults): steady at rest, responsive when moving.
+        public float FilterMinCutoff = .05f, FilterBeta = 80f, FilterDerivateCutoff = 1f;
+        // Short dropouts keep the last reading; a body that vanishes while ducking counts as ducking.
+        public float LostGraceSeconds = .5f, DuckHoldSeconds = 1.5f;
         public int CalibrationFrames = 20;
         public float CalibrationStillness = .12f;
         public float LaneEnter = .30f, LaneExit = .17f;
